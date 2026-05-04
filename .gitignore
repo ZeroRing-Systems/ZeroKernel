@@ -1,0 +1,23 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.o
+*.obj
+
+# CMake & Build Artifacts
+build/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+
+# Emscripten Output
+*.wasm
+*.js
+*.html
+
+# OS and Editor Files
+.DS_Store
+.vscode/
+.idea/
