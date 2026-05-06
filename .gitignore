@@ -12,10 +12,13 @@ CMakeFiles/
 Makefile
 cmake_install.cmake
 
-# Emscripten Output
+# Emscripten Output (binaries only — never commit compiled blobs)
 *.wasm
-*.js
-*.html
+kernel/*.js
+kernel/*.html
+
+# Emscripten SDK (installed via apt, not cloned)
+emsdk/
 
 # OS and Editor Files
 .DS_Store
