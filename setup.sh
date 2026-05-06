@@ -1,11 +1,8 @@
 # One Time setup
-git clone https://github.com/emscripten-core/emsdk.git
-cd emsdk
-./emsdk install latest
-./emsdk activate latest
+sudo apt update
+sudo apt install -y emscripten
 
-# Every time setup
-source ./emsdk_env.sh
+source /usr/share/emscripten/emsdk_env.sh
 
 # Verify setup
 emcc --version
