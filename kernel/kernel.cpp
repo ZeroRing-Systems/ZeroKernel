@@ -29,6 +29,16 @@ static bool seq(const char* a, const char* b) {
     return *a == *b;
 }
 
+static void itoa_simple(int n, char* buf) {
+    if (n < 0) { *buf++ = '-'; n = -n; }
+    if (n == 0) { *buf++ = '0'; *buf = 0; return; }
+    char tmp[12];
+    int i = 0;
+    while (n > 0) { tmp[i++] = '0' + (n % 10); n /= 10; }
+    while (i > 0) *buf++ = tmp[--i];
+    *buf = 0;
+}
+
 struct Args {
     int argc;
     char argv[16][64];
@@ -95,6 +105,11 @@ static void cmd_help(const Args&) {
     hal->print_text("stat <file>       check if file exists");
     hal->print_text("touch <file>      create empty file");
     hal->print_text("pixel <x> <y> <c> draw a pixel");
+    hal->print_text("open <file>       open file descriptor");
+    hal->print_text("fread <fd>        read from fd");
+    hal->print_text("fwrite <fd> <d>   write to fd");
+    hal->print_text("fclose <fd>       close fd");
+    hal->print_text("storage [mode]    show or set: cloud|opfs");
 }
 
 static void cmd_clear(const Args&) {
@@ -219,25 +234,124 @@ static void cmd_pixel(const Args& a) {
     hal->draw_pixel(x, y, c);
 }
 
+static void cmd_open(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: open <file>");
+        return;
+    }
+    int flags = 0;
+    if (a.argc >= 3) flags = atoi_simple(a.argv[2]);
+    int fd = hal->fs_open(a.argv[1], flags);
+    if (fd < 0) {
+        hal->print_text("open failed");
+        return;
+    }
+    char buf[64];
+    scpy(buf, "fd ");
+    char num[12];
+    itoa_simple(fd, num);
+    scat(buf, num);
+    hal->print_text(buf);
+}
+
+static void cmd_fread(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: fread <fd>");
+        return;
+    }
+    int fd = atoi_simple(a.argv[1]);
+    char buf[1024];
+    int n = hal->fs_read(fd, buf, 1023);
+    if (n < 0) {
+        hal->print_text("read failed");
+        return;
+    }
+    buf[n] = 0;
+    if (n == 0)
+        hal->print_text("(empty)");
+    else
+        hal->print_text(buf);
+}
+
+static void cmd_fwrite(const Args& a) {
+    if (a.argc < 3) {
+        hal->print_text("usage: fwrite <fd> <data>");
+        return;
+    }
+    int fd = atoi_simple(a.argv[1]);
+    char data[512];
+    scpy(data, a.argv[2]);
+    for (int i = 3; i < a.argc; i++) {
+        scat(data, " ");
+        scat(data, a.argv[i]);
+    }
+    int n = hal->fs_write(fd, data, slen(data));
+    if (n < 0) {
+        hal->print_text("write failed");
+        return;
+    }
+    char buf[64];
+    scpy(buf, "wrote ");
+    char num[12];
+    itoa_simple(n, num);
+    scat(buf, num);
+    scat(buf, " bytes");
+    hal->print_text(buf);
+}
+
+static void cmd_fclose(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: fclose <fd>");
+        return;
+    }
+    int fd = atoi_simple(a.argv[1]);
+    int r = hal->fs_close(fd);
+    if (r < 0)
+        hal->print_text("close failed");
+    else
+        hal->print_text("closed");
+}
+
+static void cmd_storage(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: storage <cloud|opfs>");
+        return;
+    }
+    if (!seq(a.argv[1], "cloud") && !seq(a.argv[1], "opfs")) {
+        hal->print_text("modes: cloud, opfs");
+        return;
+    }
+    hal->set_storage(a.argv[1]);
+    char buf[64];
+    scpy(buf, "storage: ");
+    scat(buf, a.argv[1]);
+    hal->print_text(buf);
+}
+
 struct Command {
     const char* name;
     CmdFn fn;
 };
 
 static const Command commands[] = {
-    {"help",   cmd_help},
-    {"clear",  cmd_clear},
-    {"uname",  cmd_uname},
-    {"whoami", cmd_whoami},
-    {"echo",   cmd_echo},
-    {"ls",     cmd_ls},
-    {"cat",    cmd_cat},
-    {"write",  cmd_write},
-    {"rm",     cmd_rm},
-    {"stat",   cmd_stat},
-    {"touch",  cmd_touch},
-    {"pixel",  cmd_pixel},
-    {nullptr,  nullptr},
+    {"help",    cmd_help},
+    {"clear",   cmd_clear},
+    {"uname",   cmd_uname},
+    {"whoami",  cmd_whoami},
+    {"echo",    cmd_echo},
+    {"ls",      cmd_ls},
+    {"cat",     cmd_cat},
+    {"write",   cmd_write},
+    {"rm",      cmd_rm},
+    {"stat",    cmd_stat},
+    {"touch",   cmd_touch},
+    {"pixel",   cmd_pixel},
+    {"open",    cmd_open},
+    {"fread",   cmd_fread},
+    {"fwrite",  cmd_fwrite},
+    {"fclose",  cmd_fclose},
+    {"storage", cmd_storage},
+    {nullptr,   nullptr},
 };
 
 static void exec(const char* input) {
