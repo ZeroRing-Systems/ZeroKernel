@@ -7,96 +7,258 @@ static char line[256];
 static int line_pos = 0;
 static const char* prompt = "zerosh $ ";
 
-static bool streq(const char* a, const char* b) {
+static int slen(const char* s) {
+    int n = 0;
+    while (s[n]) n++;
+    return n;
+}
+
+static void scpy(char* dst, const char* src) {
+    while (*src) *dst++ = *src++;
+    *dst = 0;
+}
+
+static void scat(char* dst, const char* src) {
+    while (*dst) dst++;
+    while (*src) *dst++ = *src++;
+    *dst = 0;
+}
+
+static bool seq(const char* a, const char* b) {
     while (*a && *b) { if (*a++ != *b++) return false; }
     return *a == *b;
 }
 
-static bool starts_with(const char* str, const char* prefix) {
-    while (*prefix) { if (*str++ != *prefix++) return false; }
-    return true;
+struct Args {
+    int argc;
+    char argv[16][64];
+};
+
+static Args parse(const char* input) {
+    Args a{};
+    a.argc = 0;
+    int pos = 0;
+
+    while (input[pos] == ' ') pos++;
+
+    while (input[pos] && a.argc < 16) {
+        int len = 0;
+        if (input[pos] == '"') {
+            pos++;
+            while (input[pos] && input[pos] != '"')
+                a.argv[a.argc][len++] = input[pos++];
+            if (input[pos] == '"') pos++;
+        } else {
+            while (input[pos] && input[pos] != ' ')
+                a.argv[a.argc][len++] = input[pos++];
+        }
+        a.argv[a.argc][len] = 0;
+        a.argc++;
+        while (input[pos] == ' ') pos++;
+    }
+
+    return a;
+}
+
+static void build_json(char* buf, const char* action, const char* file = nullptr,
+                       const char* key2 = nullptr, const char* val2 = nullptr) {
+    scpy(buf, "{\"action\":\"");
+    scat(buf, action);
+    scat(buf, "\"");
+    if (file) {
+        scat(buf, ",\"file\":\"");
+        scat(buf, file);
+        scat(buf, "\"");
+    }
+    if (key2 && val2) {
+        scat(buf, ",\"");
+        scat(buf, key2);
+        scat(buf, "\":\"");
+        scat(buf, val2);
+        scat(buf, "\"");
+    }
+    scat(buf, "}");
+}
+
+typedef void (*CmdFn)(const Args&);
+
+static void cmd_help(const Args&) {
+    hal->print_text("help              show this message");
+    hal->print_text("clear             clear the screen");
+    hal->print_text("uname             system info");
+    hal->print_text("whoami            current user");
+    hal->print_text("echo [text...]    print text");
+    hal->print_text("ls                list files");
+    hal->print_text("cat <file>        read a file");
+    hal->print_text("write <f> <data>  write to a file");
+    hal->print_text("rm <file>         delete a file");
+    hal->print_text("stat <file>       check if file exists");
+    hal->print_text("touch <file>      create empty file");
+    hal->print_text("pixel <x> <y> <c> draw a pixel");
+}
+
+static void cmd_clear(const Args&) {
+    hal->print_text("\x1b[clear]");
+}
+
+static void cmd_uname(const Args&) {
+    hal->print_text("ZeroRing OS v0.1 [wasm32]");
+}
+
+static void cmd_whoami(const Args&) {
+    hal->print_text("root");
+}
+
+static void cmd_echo(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("");
+        return;
+    }
+    char buf[512];
+    scpy(buf, a.argv[1]);
+    for (int i = 2; i < a.argc; i++) {
+        scat(buf, " ");
+        scat(buf, a.argv[i]);
+    }
+    hal->print_text(buf);
+}
+
+static void cmd_ls(const Args&) {
+    char buf[128];
+    build_json(buf, "list_files");
+    hal->network_request(buf);
+}
+
+static void cmd_cat(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: cat <file>");
+        return;
+    }
+    char buf[512];
+    build_json(buf, "read_file", a.argv[1]);
+    hal->network_request(buf);
+}
+
+static void cmd_write(const Args& a) {
+    if (a.argc < 3) {
+        hal->print_text("usage: write <file> <data>");
+        return;
+    }
+    char data[256];
+    scpy(data, a.argv[2]);
+    for (int i = 3; i < a.argc; i++) {
+        scat(data, " ");
+        scat(data, a.argv[i]);
+    }
+    char buf[512];
+    build_json(buf, "write_file", a.argv[1], "data", data);
+    hal->network_request(buf);
+}
+
+static void cmd_rm(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: rm <file>");
+        return;
+    }
+    char buf[512];
+    build_json(buf, "delete_file", a.argv[1]);
+    hal->network_request(buf);
+}
+
+static void cmd_stat(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: stat <file>");
+        return;
+    }
+    char buf[512];
+    build_json(buf, "read_file", a.argv[1]);
+    hal->network_request(buf);
+}
+
+static void cmd_touch(const Args& a) {
+    if (a.argc < 2) {
+        hal->print_text("usage: touch <file>");
+        return;
+    }
+    char buf[512];
+    build_json(buf, "write_file", a.argv[1], "data", "");
+    hal->network_request(buf);
+}
+
+static int atoi_simple(const char* s) {
+    int n = 0;
+    bool neg = false;
+    if (*s == '-') { neg = true; s++; }
+    while (*s >= '0' && *s <= '9') n = n * 10 + (*s++ - '0');
+    return neg ? -n : n;
+}
+
+static int hex_to_int(const char* s) {
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) s += 2;
+    int val = 0;
+    while (*s) {
+        int d;
+        if (*s >= '0' && *s <= '9') d = *s - '0';
+        else if (*s >= 'a' && *s <= 'f') d = *s - 'a' + 10;
+        else if (*s >= 'A' && *s <= 'F') d = *s - 'A' + 10;
+        else break;
+        val = (val << 4) | d;
+        s++;
+    }
+    return val;
+}
+
+static void cmd_pixel(const Args& a) {
+    if (a.argc < 4) {
+        hal->print_text("usage: pixel <x> <y> <color>");
+        return;
+    }
+    int x = atoi_simple(a.argv[1]);
+    int y = atoi_simple(a.argv[2]);
+    int c = hex_to_int(a.argv[3]);
+    hal->draw_pixel(x, y, c);
+}
+
+struct Command {
+    const char* name;
+    CmdFn fn;
+};
+
+static const Command commands[] = {
+    {"help",   cmd_help},
+    {"clear",  cmd_clear},
+    {"uname",  cmd_uname},
+    {"whoami", cmd_whoami},
+    {"echo",   cmd_echo},
+    {"ls",     cmd_ls},
+    {"cat",    cmd_cat},
+    {"write",  cmd_write},
+    {"rm",     cmd_rm},
+    {"stat",   cmd_stat},
+    {"touch",  cmd_touch},
+    {"pixel",  cmd_pixel},
+    {nullptr,  nullptr},
+};
+
+static void exec(const char* input) {
+    Args a = parse(input);
+    if (a.argc == 0) return;
+
+    for (int i = 0; commands[i].name; i++) {
+        if (seq(a.argv[0], commands[i].name)) {
+            commands[i].fn(a);
+            return;
+        }
+    }
+
+    char buf[128];
+    scpy(buf, a.argv[0]);
+    scat(buf, ": command not found");
+    hal->print_text(buf);
 }
 
 static void show_prompt() {
     hal->set_prompt(prompt);
-}
-
-static void exec(const char* cmd) {
-    if (streq(cmd, "help")) {
-        hal->print_text("commands: help, clear, ls, cat <file>, write <file> <data>, rm <file>, uname");
-        return;
-    }
-
-    if (streq(cmd, "clear")) {
-        hal->print_text("\x1b[clear]");
-        return;
-    }
-
-    if (streq(cmd, "uname")) {
-        hal->print_text("ZeroRing OS v0.1 [wasm32]");
-        return;
-    }
-
-    if (streq(cmd, "ls")) {
-        hal->network_request("{\"action\":\"list_files\"}");
-        return;
-    }
-
-    if (starts_with(cmd, "cat ")) {
-        const char* file = cmd + 4;
-        char buf[512];
-        int i = 0;
-        const char* pre = "{\"action\":\"read_file\",\"file\":\"";
-        while (*pre) buf[i++] = *pre++;
-        while (*file) buf[i++] = *file++;
-        const char* suf = "\"}";
-        while (*suf) buf[i++] = *suf++;
-        buf[i] = 0;
-        hal->network_request(buf);
-        return;
-    }
-
-    if (starts_with(cmd, "write ")) {
-        const char* rest = cmd + 6;
-        char file[128];
-        int fi = 0;
-        while (*rest && *rest != ' ') file[fi++] = *rest++;
-        file[fi] = 0;
-        if (*rest) rest++;
-
-        char buf[512];
-        int i = 0;
-        const char* pre = "{\"action\":\"write_file\",\"file\":\"";
-        while (*pre) buf[i++] = *pre++;
-        const char* f = file;
-        while (*f) buf[i++] = *f++;
-        const char* mid = "\",\"data\":\"";
-        while (*mid) buf[i++] = *mid++;
-        while (*rest) buf[i++] = *rest++;
-        const char* suf = "\"}";
-        while (*suf) buf[i++] = *suf++;
-        buf[i] = 0;
-        hal->network_request(buf);
-        return;
-    }
-
-    if (starts_with(cmd, "rm ")) {
-        const char* file = cmd + 3;
-        char buf[512];
-        int i = 0;
-        const char* pre = "{\"action\":\"delete_file\",\"file\":\"";
-        while (*pre) buf[i++] = *pre++;
-        while (*file) buf[i++] = *file++;
-        const char* suf = "\"}";
-        while (*suf) buf[i++] = *suf++;
-        buf[i] = 0;
-        hal->network_request(buf);
-        return;
-    }
-
-    if (cmd[0] != 0) {
-        hal->print_text("unknown command");
-    }
 }
 
 extern "C" void handle_key(int key) {
