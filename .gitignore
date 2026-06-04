@@ -1,26 +1,74 @@
+# ========================
 # Prerequisites
+# ========================
 *.d
 
-# Compiled Object files
+# ========================
+# Compiled Object Files
+# ========================
 *.o
 *.obj
+*.so
+*.a
+*.dylib
 
+# ========================
 # CMake & Build Artifacts
+# ========================
 build/
 CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
 
-# Emscripten Output (binaries only — never commit compiled blobs)
+# ========================
+# Emscripten Output
+# ========================
+# Compiled blobs — never commit
 *.wasm
 kernel/*.js
 kernel/*.html
 
-# Emscripten SDK (installed via apt, not cloned)
+# ========================
+# Emscripten SDK
+# ========================
 emsdk/
 
-# OS and Editor Files
+# ========================
+# OS Files
+# ========================
 .DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# ========================
+# Editor / IDE Files
+# ========================
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# ========================
+# Debug & Logs
+# ========================
+*.log
+core
+core.*
+vgcore.*
+
+# ========================
+# Compiled Binaries
+# ========================
+*.bin
+*.elf
+*.exe
+*.out
+*.app
