@@ -1,18 +1,25 @@
-# 🧠 ZeroKernel
+# ZeroKernel
 
-**ZeroKernel** is the pure C++ operating system core for the ZeroRing-Systems architecture. 
+The kernel for ZeroRing OS, compiled to WebAssembly.
 
-### ⚙️ Core Philosophy
-This repository strictly adheres to the **"Environmental Ignorance"** rule: the kernel must never know whether it is running inside a web browser or on bare-metal x86 hardware. 
+## What it does
 
-* **Zero Dependencies:** This repository contains strictly freestanding C++. It does not include `<emscripten.h>` or standard library calls (like `printf` or `malloc`).
-* **The HAL Contract:** All hardware interactions, memory management, and I/O side-effects are routed entirely through the `hal.h` (Hardware Abstraction Layer) interface. 
+- Runs a simple shell (`zerosh`) with commands like `ls`, `cat`, `write`, `rm`
+- Talks to the backend through a HAL (Hardware Abstraction Layer) interface
+- The kernel doesn't know it's running in a browser — it just calls HAL functions
 
-### 🛠️ Build Instructions
-This project uses **CMake** and the **Emscripten (emcc)** toolchain to compile the C++ logic into a WebAssembly executable (`kernel.wasm`).
+## Files
+
+- `interfaces/hal.h` — abstract class that defines what the kernel can do
+- `kernel/kernel.cpp` — the shell and all commands
+- `kernel/hal_wasm.cpp` — connects HAL functions to JavaScript
+
+## Build
 
 ```bash
-mkdir build
-cd build
+mkdir build && cd build
 emcmake cmake ..
 make
+```
+
+Produces `kernel.wasm`.
