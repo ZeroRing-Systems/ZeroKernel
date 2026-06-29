@@ -53,12 +53,20 @@ if [[ ! -x "$SERVER_BIN" ]]; then
 fi
 
 echo "[3/4] Starting web server and backend..."
-trap 'kill "$SERVER_PID" "$HTTP_PID" 2>/dev/null || true' EXIT INT TERM
+fuser -k "$WS_PORT"/tcp "$HTTP_PORT"/tcp 2>/dev/null || true
+sleep 1
 
-"$SERVER_BIN" 2>&1 | tee "$CLOUD_DIR/server.log" &
+cleanup() {
+  echo "Terminating ZeroRing processes..."
+  kill "$SERVER_PID" "$HTTP_PID" 2>/dev/null || true
+  fuser -k "$WS_PORT"/tcp "$HTTP_PORT"/tcp 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+"$SERVER_BIN" > "$CLOUD_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 
-python3 -m http.server "$HTTP_PORT" --directory "$CLOUD_DIR/public" >"$CLOUD_DIR/http.log" 2>&1 &
+python3 -m http.server "$HTTP_PORT" --directory "$CLOUD_DIR/public" > "$CLOUD_DIR/http.log" 2>&1 &
 HTTP_PID=$!
 
 sleep 2
@@ -75,3 +83,4 @@ fi
 echo ""
 echo "Press Ctrl+C to stop."
 wait "$SERVER_PID" "$HTTP_PID"
+
