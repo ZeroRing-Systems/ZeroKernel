@@ -1,21 +1,7 @@
-// ============================================================================
-// kernel.cpp — ZeroKernel main: freestanding C++ (no standard library)
-// ============================================================================
-// This is the core of ZeroRing OS. It runs inside the browser as WebAssembly.
-// All I/O goes through the HAL function-pointer table. The kernel handles
-// keystrokes, parses commands, and dispatches network requests to the
-// ZeroRing-Cloud backend via JSON over WebSocket.
-//
-// CONSTRAINT: No #include <string>, <vector>, <iostream>, etc.
-//             Only hal.h and raw C constructs.
-// ============================================================================
 #include "../interfaces/hal.h"
 
 extern "C" HAL* hal_get(void);
 
-// ---------------------------------------------------------------------------
-// Freestanding string utilities
-// ---------------------------------------------------------------------------
 namespace str {
 
 static int len(const char* s) {
@@ -40,7 +26,6 @@ static bool starts_with(const char* s, const char* prefix) {
     return true;
 }
 
-// Copy src into dst, return number of chars written (excluding nul).
 static int copy(char* dst, const char* src, int max) {
     int i = 0;
     while (src[i] && i < max - 1) {
@@ -51,7 +36,6 @@ static int copy(char* dst, const char* src, int max) {
     return i;
 }
 
-// Append src onto dst (dst must have room). Returns new total length.
 static int append(char* dst, int dst_len, const char* src, int max) {
     int i = 0;
     while (src[i] && dst_len + i < max - 1) {
@@ -62,13 +46,11 @@ static int append(char* dst, int dst_len, const char* src, int max) {
     return dst_len + i;
 }
 
-// Skip leading whitespace, return pointer into same buffer.
 static const char* trim(const char* s) {
     while (*s == ' ' || *s == '\t') s++;
     return s;
 }
 
-// Return pointer to first char after the first space, or nullptr if none.
 static const char* after_space(const char* s) {
     while (*s && *s != ' ') s++;
     if (*s == ' ') {
@@ -78,17 +60,13 @@ static const char* after_space(const char* s) {
     return nullptr;
 }
 
-} // namespace str
+}
 
-// ---------------------------------------------------------------------------
-// JSON builder — constructs command payloads without any allocator
-// ---------------------------------------------------------------------------
 namespace json {
 
 static const int BUF_SIZE = 1024;
 static char buf[BUF_SIZE];
 
-// Build: {"cmd":"<cmd>"}
 static const char* cmd(const char* command) {
     int pos = 0;
     pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
@@ -97,7 +75,6 @@ static const char* cmd(const char* command) {
     return buf;
 }
 
-// Build: {"cmd":"<cmd>","path":"<path>"}
 static const char* cmd_path(const char* command, const char* path) {
     int pos = 0;
     pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
@@ -108,7 +85,6 @@ static const char* cmd_path(const char* command, const char* path) {
     return buf;
 }
 
-// Build: {"cmd":"save","path":"<path>","data":"<data>"}
 static const char* cmd_save(const char* path, const char* data) {
     int pos = 0;
     pos = str::copy(buf, "{\"cmd\":\"save\",\"path\":\"", BUF_SIZE);
@@ -119,11 +95,8 @@ static const char* cmd_save(const char* path, const char* data) {
     return buf;
 }
 
-} // namespace json
+}
 
-// ---------------------------------------------------------------------------
-// Kernel state
-// ---------------------------------------------------------------------------
 static HAL*  hal         = nullptr;
 static char  line[256];
 static int   line_pos    = 0;
@@ -132,9 +105,6 @@ static char  cwd[256]    = "/";
 static const char* VERSION = "ZeroRing OS v0.2.0";
 static const char* PROMPT_FMT = "zeroring:";
 
-// ---------------------------------------------------------------------------
-// Build the prompt string: "zeroring:/path$ "
-// ---------------------------------------------------------------------------
 static char prompt_buf[320];
 
 static void refresh_prompt() {
@@ -145,9 +115,6 @@ static void refresh_prompt() {
     hal->set_prompt(prompt_buf);
 }
 
-// ---------------------------------------------------------------------------
-// Built-in command table
-// ---------------------------------------------------------------------------
 static void cmd_help() {
     hal->print("Built-in commands:");
     hal->print("  help              Show this message");
@@ -170,7 +137,6 @@ static void execute_command(char* input) {
     const char* trimmed = str::trim(input);
     if (trimmed[0] == '\0') return;
 
-    // ---- Local built-ins ----
     if (str::eq(trimmed, "clear")) {
         hal->clear_screen();
         return;
@@ -201,18 +167,16 @@ static void execute_command(char* input) {
         return;
     }
 
-    // ---- cd is handled locally (updates cwd) + notifies backend ----
     if (str::starts_with(trimmed, "cd ")) {
         const char* target = str::trim(trimmed + 3);
         if (target[0] == '/') {
             str::copy(cwd, target, 256);
         } else if (str::eq(target, "..")) {
-            // Navigate up: find last '/' and truncate
             int l = str::len(cwd);
             if (l > 1) {
-                l--; // skip trailing char
+                l--;
                 while (l > 0 && cwd[l] != '/') l--;
-                if (l == 0) l = 1; // keep root "/"
+                if (l == 0) l = 1;
                 cwd[l] = '\0';
             }
         } else {
@@ -226,7 +190,6 @@ static void execute_command(char* input) {
         return;
     }
 
-    // ---- Remote filesystem commands (dispatched to backend via WebSocket) ----
     if (str::eq(trimmed, "ls")) {
         hal->net_send(json::cmd_path("ls", cwd));
         return;
@@ -257,11 +220,9 @@ static void execute_command(char* input) {
     }
 
     if (str::starts_with(trimmed, "write ")) {
-        // write <filename> <data...>
         const char* rest = str::trim(trimmed + 6);
         const char* data = str::after_space(rest);
         if (data) {
-            // extract filename
             char fname[128];
             int i = 0;
             while (rest[i] && rest[i] != ' ' && i < 127) {
@@ -276,19 +237,12 @@ static void execute_command(char* input) {
         return;
     }
 
-    // ---- Unknown ----
     hal->print("zeroring: command not found: ");
     hal->print(trimmed);
     hal->print("Type 'help' for available commands.");
 }
 
-// ---------------------------------------------------------------------------
-// Exported WASM entry points
-// ---------------------------------------------------------------------------
-
-// Called by terminal.js on every keystroke.
 extern "C" void handle_key(int key) {
-    // Enter
     if (key == 13) {
         line[line_pos] = '\0';
         execute_command(line);
@@ -298,30 +252,24 @@ extern "C" void handle_key(int key) {
         return;
     }
 
-    // Backspace / Delete
     if (key == 8 || key == 127) {
         if (line_pos > 0) line_pos--;
         line[line_pos] = '\0';
         return;
     }
 
-    // Printable ASCII
     if (line_pos < 255 && key >= 32 && key < 127) {
         line[line_pos++] = (char)key;
         line[line_pos] = '\0';
     }
 }
 
-// Called by terminal.js when backend sends a WebSocket response.
 extern "C" void handle_net_response(const char* json_response) {
-    // For now, print the raw response. A future version will parse the
-    // JSON and route it to the appropriate kernel subsystem.
     if (json_response) {
         hal->print(json_response);
     }
 }
 
-// Called once on page load after WASM instantiation.
 extern "C" void kernel_main() {
     hal = hal_get();
     hal->print(VERSION);

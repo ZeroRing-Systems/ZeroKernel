@@ -1,17 +1,4 @@
 #!/usr/bin/env bash
-# ============================================================================
-# build_and_run.sh — Build and launch the full ZeroRing stack
-# ============================================================================
-# Usage:
-#   ./build_and_run.sh              # Build all, run with in-memory VFS
-#   ./build_and_run.sh --postgres   # Build all, run with PostgreSQL backend
-#
-# Prerequisites:
-#   - Emscripten SDK (emcmake, emcc on PATH)
-#   - CMake >= 3.28
-#   - OpenSSL dev headers (libssl-dev)
-#   - [Optional] libpqxx-dev, libpq-dev, running PostgreSQL instance
-# ============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,7 +14,6 @@ SERVER_BIN="$CLOUD_BUILD_DIR/server"
 HTTP_PORT="8000"
 WS_PORT="8080"
 
-# Parse arguments
 USE_PG="OFF"
 for arg in "$@"; do
     case "$arg" in
@@ -35,12 +21,10 @@ for arg in "$@"; do
     esac
 done
 
-# Clean and prepare build dirs
 mkdir -p "$PUBLIC_WASM_DIR"
 rm -rf "$KERNEL_BUILD_DIR" "$CLOUD_BUILD_DIR"
 mkdir -p "$KERNEL_BUILD_DIR" "$CLOUD_BUILD_DIR"
 
-# ---- Step 1: Build ZeroKernel to WASM ----
 echo "[1/4] Building ZeroKernel to WebAssembly..."
 (
   cd "$KERNEL_BUILD_DIR"
@@ -56,7 +40,6 @@ fi
 cp "$KERNEL_WASM_FILE" "$PUBLIC_WASM_FILE"
 echo "    -> Copied kernel.wasm to $PUBLIC_WASM_DIR"
 
-# ---- Step 2: Build ZeroRing-Cloud backend ----
 echo "[2/4] Building ZeroRing-Cloud backend (USE_POSTGRES=$USE_PG)..."
 (
   cd "$CLOUD_BUILD_DIR"
@@ -69,7 +52,6 @@ if [[ ! -x "$SERVER_BIN" ]]; then
   exit 1
 fi
 
-# ---- Step 3: Launch servers ----
 echo "[3/4] Starting web server and backend..."
 trap 'kill "$SERVER_PID" "$HTTP_PID" 2>/dev/null || true' EXIT INT TERM
 

@@ -3,10 +3,6 @@ project(ZeroKernel LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# ---------------------------------------------------------------------------
-# ZeroKernel WASM binary — freestanding, no libc, no entry point.
-# All I/O is imported from the JS host via extern "C" declarations.
-# ---------------------------------------------------------------------------
 add_executable(kernel.wasm
     kernel/kernel.cpp
     kernel/hal_wasm.cpp
