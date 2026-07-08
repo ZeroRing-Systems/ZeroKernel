@@ -101,6 +101,8 @@ static HAL*  hal         = nullptr;
 static char  line[256];
 static int   line_pos    = 0;
 static char  cwd[256]    = "/";
+static char  pending_cd[256] = "";
+static bool  cd_pending  = false;
 
 static const char* VERSION = "ZeroRing OS v0.2.0";
 static const char* PROMPT_FMT = "zeroring:";
@@ -169,24 +171,29 @@ static void execute_command(char* input) {
 
     if (str::starts_with(trimmed, "cd ")) {
         const char* target = str::trim(trimmed + 3);
+        char resolved[256];
         if (target[0] == '/') {
-            str::copy(cwd, target, 256);
+            str::copy(resolved, target, 256);
         } else if (str::eq(target, "..")) {
-            int l = str::len(cwd);
+            str::copy(resolved, cwd, 256);
+            int l = str::len(resolved);
             if (l > 1) {
                 l--;
-                while (l > 0 && cwd[l] != '/') l--;
+                while (l > 0 && resolved[l] != '/') l--;
                 if (l == 0) l = 1;
-                cwd[l] = '\0';
+                resolved[l] = '\0';
             }
         } else {
-            int l = str::len(cwd);
+            str::copy(resolved, cwd, 256);
+            int l = str::len(resolved);
             if (l > 1) {
-                l = str::append(cwd, l, "/", 256);
+                l = str::append(resolved, l, "/", 256);
             }
-            str::append(cwd, l, target, 256);
+            str::append(resolved, l, target, 256);
         }
-        refresh_prompt();
+        str::copy(pending_cd, resolved, 256);
+        cd_pending = true;
+        hal->net_send(json::cmd_path("stat", resolved));
         return;
     }
 
@@ -271,9 +278,22 @@ extern "C" void handle_key(int key) {
 }
 
 extern "C" void handle_net_response(const char* json_response) {
-    if (json_response) {
-        hal->print(json_response);
+    if (!json_response) return;
+
+    if (cd_pending && str::starts_with(json_response, "__stat__")) {
+        cd_pending = false;
+        if (str::eq(json_response, "__stat__dir")) {
+            str::copy(cwd, pending_cd, 256);
+            refresh_prompt();
+        } else {
+            hal->print("cd: no such directory: ");
+            hal->print(pending_cd);
+        }
+        pending_cd[0] = '\0';
+        return;
     }
+
+    hal->print(json_response);
 }
 
 extern "C" void kernel_main() {
