@@ -1,6 +1,8 @@
 #include "../interfaces/hal.h"
 
 extern "C" HAL* hal_get(void);
+extern "C" char js_scratch_buf[4096];
+char js_scratch_buf[4096];
 
 namespace str {
 
