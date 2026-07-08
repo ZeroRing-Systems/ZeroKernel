@@ -147,16 +147,16 @@ static void cmd_help() {
     hal->print("  clear             Clear the terminal");
     hal->print("  echo <text>       Print text to terminal");
     hal->print("  version           Show kernel version");
-    hal->print("  whoami            Show current user");
-    hal->print("");
-    hal->print("Filesystem (remote):");
-    hal->print("  ls [path]         List directory");
-    hal->print("  cd <path>         Change directory");
-    hal->print("  mkdir <name>      Create directory");
-    hal->print("  cat <file>        Read file contents");
-    hal->print("  write <f> <data>  Write data to file");
-    hal->print("  rm <path>         Remove file or directory");
+    hal->print("  whoami            Print current user");
     hal->print("  pwd               Print working directory");
+    hal->print("  cd <path>         Change directory");
+    hal->print("  ls [path]         List directory contents");
+    hal->print("  mkdir <path>      Create a directory");
+    hal->print("  rm <path>         Remove a file or empty dir");
+    hal->print("  cat <file>        Print file contents");
+    hal->print("  write <f> <data>  Write data to a file");
+    hal->print("  edit <file>       Open file in text editor");
+    hal->print("  run <file>        Execute python script");
 }
 
 static void execute_command(char* input) {
@@ -237,6 +237,22 @@ static void execute_command(char* input) {
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
         hal->net_send(json::cmd_path("rm", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "edit ")) {
+        const char* file = str::trim(trimmed + 5);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        hal->net_send(json::cmd_path("edit", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "run ")) {
+        const char* file = str::trim(trimmed + 4);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        hal->net_send(json::cmd_path("run", resolved));
         return;
     }
 
