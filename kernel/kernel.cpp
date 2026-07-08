@@ -4,33 +4,46 @@ extern "C" HAL* hal_get(void);
 extern "C" char js_scratch_buf[4096];
 char js_scratch_buf[4096];
 
-namespace str {
+namespace str
+{
 
-static int len(const char* s) {
+static int len(const char* s)
+{
     int n = 0;
-    while (s[n]) n++;
+    while (s[n])
+        n++;
     return n;
 }
 
-static bool eq(const char* a, const char* b) {
-    while (*a && *b) {
-        if (*a != *b) return false;
-        a++; b++;
+static bool eq(const char* a, const char* b)
+{
+    while (*a && *b)
+    {
+        if (*a != *b)
+            return false;
+        a++;
+        b++;
     }
     return *a == *b;
 }
 
-static bool starts_with(const char* s, const char* prefix) {
-    while (*prefix) {
-        if (*s != *prefix) return false;
-        s++; prefix++;
+static bool starts_with(const char* s, const char* prefix)
+{
+    while (*prefix)
+    {
+        if (*s != *prefix)
+            return false;
+        s++;
+        prefix++;
     }
     return true;
 }
 
-static int copy(char* dst, const char* src, int max) {
+static int copy(char* dst, const char* src, int max)
+{
     int i = 0;
-    while (src[i] && i < max - 1) {
+    while (src[i] && i < max - 1)
+    {
         dst[i] = src[i];
         i++;
     }
@@ -38,9 +51,11 @@ static int copy(char* dst, const char* src, int max) {
     return i;
 }
 
-static int append(char* dst, int dst_len, const char* src, int max) {
+static int append(char* dst, int dst_len, const char* src, int max)
+{
     int i = 0;
-    while (src[i] && dst_len + i < max - 1) {
+    while (src[i] && dst_len + i < max - 1)
+    {
         dst[dst_len + i] = src[i];
         i++;
     }
@@ -48,50 +63,67 @@ static int append(char* dst, int dst_len, const char* src, int max) {
     return dst_len + i;
 }
 
-static const char* trim(const char* s) {
-    while (*s == ' ' || *s == '\t') s++;
+static const char* trim(const char* s)
+{
+    while (*s == ' ' || *s == '\t')
+        s++;
     return s;
 }
 
-static const char* after_space(const char* s) {
-    while (*s && *s != ' ') s++;
-    if (*s == ' ') {
+static const char* after_space(const char* s)
+{
+    while (*s && *s != ' ')
+        s++;
+    if (*s == ' ')
+    {
         s++;
         return s;
     }
     return nullptr;
 }
 
-static void resolve_path(const char* cwd, const char* target, char* resolved, int max) {
-    if (target[0] == '/') {
+static void resolve_path(const char* cwd, const char* target, char* resolved, int max)
+{
+    if (target[0] == '/')
+    {
         copy(resolved, target, max);
-    } else if (eq(target, "..")) {
+    }
+    else if (eq(target, ".."))
+    {
         copy(resolved, cwd, max);
         int l = len(resolved);
-        if (l > 1) {
+        if (l > 1)
+        {
             l--;
-            while (l > 0 && resolved[l] != '/') l--;
-            if (l == 0) l = 1;
+            while (l > 0 && resolved[l] != '/')
+                l--;
+            if (l == 0)
+                l = 1;
             resolved[l] = '\0';
         }
-    } else {
+    }
+    else
+    {
         copy(resolved, cwd, max);
         int l = len(resolved);
-        if (l > 1) {
+        if (l > 1)
+        {
             l = append(resolved, l, "/", max);
         }
         append(resolved, l, target, max);
     }
 }
 
-}
+} // namespace str
 
-namespace json {
+namespace json
+{
 
 static const int BUF_SIZE = 1024;
 static char buf[BUF_SIZE];
 
-static const char* cmd(const char* command) {
+static const char* cmd(const char* command)
+{
     int pos = 0;
     pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
     pos = str::append(buf, pos, command, BUF_SIZE);
@@ -99,7 +131,8 @@ static const char* cmd(const char* command) {
     return buf;
 }
 
-static const char* cmd_path(const char* command, const char* path) {
+static const char* cmd_path(const char* command, const char* path)
+{
     int pos = 0;
     pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
     pos = str::append(buf, pos, command, BUF_SIZE);
@@ -109,31 +142,53 @@ static const char* cmd_path(const char* command, const char* path) {
     return buf;
 }
 
-static const char* cmd_save(const char* path, const char* data) {
+static const char* cmd_save(const char* path, const char* data)
+{
     int pos = 0;
     pos = str::copy(buf, "{\"cmd\":\"save\",\"path\":\"", BUF_SIZE);
     pos = str::append(buf, pos, path, BUF_SIZE);
     pos = str::append(buf, pos, "\",\"data\":\"", BUF_SIZE);
-    pos = str::append(buf, pos, data, BUF_SIZE);
+
+    int i = 0;
+    while (data[i] && pos < BUF_SIZE - 4)
+    {
+        if (data[i] == '"')
+        {
+            buf[pos++] = '\\';
+            buf[pos++] = '"';
+        }
+        else if (data[i] == '\\')
+        {
+            buf[pos++] = '\\';
+            buf[pos++] = '\\';
+        }
+        else
+        {
+            buf[pos++] = data[i];
+        }
+        i++;
+    }
+
     pos = str::append(buf, pos, "\"}", BUF_SIZE);
     return buf;
 }
 
-}
+} // namespace json
 
-static HAL*  hal         = nullptr;
-static char  line[256];
-static int   line_pos    = 0;
-static char  cwd[256]    = "/";
-static char  pending_cd[256] = "";
-static bool  cd_pending  = false;
+static HAL* hal = nullptr;
+static char line[256];
+static int line_pos = 0;
+static char cwd[256] = "/";
+static char pending_cd[256] = "";
+static bool cd_pending = false;
 
 static const char* VERSION = "ZeroRing OS v0.2.0";
 static const char* PROMPT_FMT = "zeroring:";
 
 static char prompt_buf[320];
 
-static void refresh_prompt() {
+static void refresh_prompt()
+{
     int pos = 0;
     pos = str::copy(prompt_buf, PROMPT_FMT, 320);
     pos = str::append(prompt_buf, pos, cwd, 320);
@@ -141,7 +196,8 @@ static void refresh_prompt() {
     hal->set_prompt(prompt_buf);
 }
 
-static void cmd_help() {
+static void cmd_help()
+{
     hal->print("Built-in commands:");
     hal->print("  help              Show this message");
     hal->print("  clear             Clear the terminal");
@@ -159,41 +215,50 @@ static void cmd_help() {
     hal->print("  run <file>        Execute python script");
 }
 
-static void execute_command(char* input) {
+static void execute_command(char* input)
+{
     const char* trimmed = str::trim(input);
-    if (trimmed[0] == '\0') return;
+    if (trimmed[0] == '\0')
+        return;
 
-    if (str::eq(trimmed, "clear")) {
+    if (str::eq(trimmed, "clear"))
+    {
         hal->clear_screen();
         return;
     }
 
-    if (str::eq(trimmed, "help")) {
+    if (str::eq(trimmed, "help"))
+    {
         cmd_help();
         return;
     }
 
-    if (str::eq(trimmed, "version")) {
+    if (str::eq(trimmed, "version"))
+    {
         hal->print(VERSION);
         return;
     }
 
-    if (str::eq(trimmed, "whoami")) {
+    if (str::eq(trimmed, "whoami"))
+    {
         hal->print("root");
         return;
     }
 
-    if (str::eq(trimmed, "pwd")) {
+    if (str::eq(trimmed, "pwd"))
+    {
         hal->print(cwd);
         return;
     }
 
-    if (str::starts_with(trimmed, "echo ")) {
+    if (str::starts_with(trimmed, "echo "))
+    {
         hal->print(trimmed + 5);
         return;
     }
 
-    if (str::starts_with(trimmed, "cd ")) {
+    if (str::starts_with(trimmed, "cd "))
+    {
         const char* target = str::trim(trimmed + 3);
         char resolved[256];
         str::resolve_path(cwd, target, resolved, 256);
@@ -203,12 +268,14 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::eq(trimmed, "ls")) {
+    if (str::eq(trimmed, "ls"))
+    {
         hal->net_send(json::cmd_path("ls", cwd));
         return;
     }
 
-    if (str::starts_with(trimmed, "ls ")) {
+    if (str::starts_with(trimmed, "ls "))
+    {
         const char* path = str::trim(trimmed + 3);
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
@@ -216,7 +283,8 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::starts_with(trimmed, "mkdir ")) {
+    if (str::starts_with(trimmed, "mkdir "))
+    {
         const char* name = str::trim(trimmed + 6);
         char resolved[256];
         str::resolve_path(cwd, name, resolved, 256);
@@ -224,7 +292,8 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::starts_with(trimmed, "cat ")) {
+    if (str::starts_with(trimmed, "cat "))
+    {
         const char* file = str::trim(trimmed + 4);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
@@ -232,7 +301,8 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::starts_with(trimmed, "rm ")) {
+    if (str::starts_with(trimmed, "rm "))
+    {
         const char* path = str::trim(trimmed + 3);
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
@@ -240,7 +310,8 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::starts_with(trimmed, "edit ")) {
+    if (str::starts_with(trimmed, "edit "))
+    {
         const char* file = str::trim(trimmed + 5);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
@@ -248,7 +319,8 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::starts_with(trimmed, "run ")) {
+    if (str::starts_with(trimmed, "run "))
+    {
         const char* file = str::trim(trimmed + 4);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
@@ -256,13 +328,16 @@ static void execute_command(char* input) {
         return;
     }
 
-    if (str::starts_with(trimmed, "write ")) {
+    if (str::starts_with(trimmed, "write "))
+    {
         const char* rest = str::trim(trimmed + 6);
         const char* data = str::after_space(rest);
-        if (data) {
+        if (data)
+        {
             char fname[128];
             int i = 0;
-            while (rest[i] && rest[i] != ' ' && i < 127) {
+            while (rest[i] && rest[i] != ' ' && i < 127)
+            {
                 fname[i] = rest[i];
                 i++;
             }
@@ -270,7 +345,9 @@ static void execute_command(char* input) {
             char resolved[256];
             str::resolve_path(cwd, fname, resolved, 256);
             hal->net_send(json::cmd_save(resolved, data));
-        } else {
+        }
+        else
+        {
             hal->print("usage: write <filename> <data>");
         }
         return;
@@ -281,8 +358,10 @@ static void execute_command(char* input) {
     hal->print("Type 'help' for available commands.");
 }
 
-extern "C" void handle_key(int key) {
-    if (key == 13) {
+extern "C" void handle_key(int key)
+{
+    if (key == 13)
+    {
         line[line_pos] = '\0';
         execute_command(line);
         line_pos = 0;
@@ -291,33 +370,43 @@ extern "C" void handle_key(int key) {
         return;
     }
 
-    if (key == 21) {
+    if (key == 21)
+    {
         line_pos = 0;
         line[0] = '\0';
         return;
     }
 
-    if (key == 8 || key == 127) {
-        if (line_pos > 0) line_pos--;
+    if (key == 8 || key == 127)
+    {
+        if (line_pos > 0)
+            line_pos--;
         line[line_pos] = '\0';
         return;
     }
 
-    if (line_pos < 255 && key >= 32 && key < 127) {
+    if (line_pos < 255 && key >= 32 && key < 127)
+    {
         line[line_pos++] = (char)key;
         line[line_pos] = '\0';
     }
 }
 
-extern "C" void handle_net_response(const char* json_response) {
-    if (!json_response) return;
+extern "C" void handle_net_response(const char* json_response)
+{
+    if (!json_response)
+        return;
 
-    if (cd_pending && str::starts_with(json_response, "__stat__")) {
+    if (cd_pending && str::starts_with(json_response, "__stat__"))
+    {
         cd_pending = false;
-        if (str::eq(json_response, "__stat__dir")) {
+        if (str::eq(json_response, "__stat__dir"))
+        {
             str::copy(cwd, pending_cd, 256);
             refresh_prompt();
-        } else {
+        }
+        else
+        {
             hal->print("cd: no such directory: ");
             hal->print(pending_cd);
         }
@@ -328,7 +417,8 @@ extern "C" void handle_net_response(const char* json_response) {
     hal->print(json_response);
 }
 
-extern "C" void kernel_main() {
+extern "C" void kernel_main()
+{
     hal = hal_get();
     hal->print(VERSION);
     hal->print("Type 'help' for available commands.");
