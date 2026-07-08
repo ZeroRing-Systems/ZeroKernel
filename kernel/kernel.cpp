@@ -252,6 +252,12 @@ extern "C" void handle_key(int key) {
         return;
     }
 
+    if (key == 21) {
+        line_pos = 0;
+        line[0] = '\0';
+        return;
+    }
+
     if (key == 8 || key == 127) {
         if (line_pos > 0) line_pos--;
         line[line_pos] = '\0';
