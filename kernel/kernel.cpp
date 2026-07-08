@@ -62,6 +62,28 @@ static const char* after_space(const char* s) {
     return nullptr;
 }
 
+static void resolve_path(const char* cwd, const char* target, char* resolved, int max) {
+    if (target[0] == '/') {
+        copy(resolved, target, max);
+    } else if (eq(target, "..")) {
+        copy(resolved, cwd, max);
+        int l = len(resolved);
+        if (l > 1) {
+            l--;
+            while (l > 0 && resolved[l] != '/') l--;
+            if (l == 0) l = 1;
+            resolved[l] = '\0';
+        }
+    } else {
+        copy(resolved, cwd, max);
+        int l = len(resolved);
+        if (l > 1) {
+            l = append(resolved, l, "/", max);
+        }
+        append(resolved, l, target, max);
+    }
+}
+
 }
 
 namespace json {
@@ -174,25 +196,7 @@ static void execute_command(char* input) {
     if (str::starts_with(trimmed, "cd ")) {
         const char* target = str::trim(trimmed + 3);
         char resolved[256];
-        if (target[0] == '/') {
-            str::copy(resolved, target, 256);
-        } else if (str::eq(target, "..")) {
-            str::copy(resolved, cwd, 256);
-            int l = str::len(resolved);
-            if (l > 1) {
-                l--;
-                while (l > 0 && resolved[l] != '/') l--;
-                if (l == 0) l = 1;
-                resolved[l] = '\0';
-            }
-        } else {
-            str::copy(resolved, cwd, 256);
-            int l = str::len(resolved);
-            if (l > 1) {
-                l = str::append(resolved, l, "/", 256);
-            }
-            str::append(resolved, l, target, 256);
-        }
+        str::resolve_path(cwd, target, resolved, 256);
         str::copy(pending_cd, resolved, 256);
         cd_pending = true;
         hal->net_send(json::cmd_path("stat", resolved));
@@ -206,25 +210,33 @@ static void execute_command(char* input) {
 
     if (str::starts_with(trimmed, "ls ")) {
         const char* path = str::trim(trimmed + 3);
-        hal->net_send(json::cmd_path("ls", path));
+        char resolved[256];
+        str::resolve_path(cwd, path, resolved, 256);
+        hal->net_send(json::cmd_path("ls", resolved));
         return;
     }
 
     if (str::starts_with(trimmed, "mkdir ")) {
         const char* name = str::trim(trimmed + 6);
-        hal->net_send(json::cmd_path("mkdir", name));
+        char resolved[256];
+        str::resolve_path(cwd, name, resolved, 256);
+        hal->net_send(json::cmd_path("mkdir", resolved));
         return;
     }
 
     if (str::starts_with(trimmed, "cat ")) {
         const char* file = str::trim(trimmed + 4);
-        hal->net_send(json::cmd_path("cat", file));
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        hal->net_send(json::cmd_path("cat", resolved));
         return;
     }
 
     if (str::starts_with(trimmed, "rm ")) {
         const char* path = str::trim(trimmed + 3);
-        hal->net_send(json::cmd_path("rm", path));
+        char resolved[256];
+        str::resolve_path(cwd, path, resolved, 256);
+        hal->net_send(json::cmd_path("rm", resolved));
         return;
     }
 
@@ -239,7 +251,9 @@ static void execute_command(char* input) {
                 i++;
             }
             fname[i] = '\0';
-            hal->net_send(json::cmd_save(fname, data));
+            char resolved[256];
+            str::resolve_path(cwd, fname, resolved, 256);
+            hal->net_send(json::cmd_save(resolved, data));
         } else {
             hal->print("usage: write <filename> <data>");
         }
