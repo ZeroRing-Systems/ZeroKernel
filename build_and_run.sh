@@ -14,10 +14,10 @@ SERVER_BIN="$CLOUD_BUILD_DIR/server"
 HTTP_PORT="8000"
 WS_PORT="8080"
 
-USE_PG="OFF"
+USE_PG="ON"
 for arg in "$@"; do
     case "$arg" in
-        --postgres) USE_PG="ON" ;;
+        --memory) USE_PG="OFF" ;;
     esac
 done
 
@@ -78,9 +78,8 @@ echo "  Backend:   ws://localhost:$WS_PORT"
 if [[ "$USE_PG" == "ON" ]]; then
   echo "  Database:  PostgreSQL (set ZERORING_DB for custom conninfo)"
 else
-  echo "  Database:  In-memory VFS (pass --postgres for PostgreSQL)"
+  echo "  Database:  In-memory VFS (pass --memory for in-memory mode)"
 fi
 echo ""
 echo "Press Ctrl+C to stop."
 wait "$SERVER_PID" "$HTTP_PID"
-
