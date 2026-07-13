@@ -937,7 +937,9 @@ static void execute_command(char* input)
             const char* file = str::trim(args + 8);
             if (file[0])
             {
-                dispatch_cmd(json::cmd_path("share", file));
+                char resolved[256];
+                str::resolve_path(cwd, file, resolved, 256);
+                dispatch_cmd(json::cmd_path("share", resolved));
             }
             else
             {
