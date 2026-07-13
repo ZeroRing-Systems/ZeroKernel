@@ -182,7 +182,7 @@ static char cwd[256] = "/";
 static char pending_cd[256] = "";
 static bool cd_pending = false;
 
-static const char* VERSION = "ZeroRing OS v1.0.0";
+static const char* VERSION = "ZeroRing OS v2.0.0";
 static const char* PROMPT_FMT = "zeroring:";
 
 static char prompt_buf[320];
@@ -361,18 +361,21 @@ static void execute_command(char* input)
         return;
     }
 
-    if (str::starts_with(trimmed, "register ")) {
+    if (str::starts_with(trimmed, "register "))
+    {
         const char* rest = str::trim(trimmed + 9);
         const char* password = str::after_space(rest);
-        if (password) {
+        if (password)
+        {
             char uname[128];
             int i = 0;
-            while (rest[i] && rest[i] != ' ' && i < 127) {
+            while (rest[i] && rest[i] != ' ' && i < 127)
+            {
                 uname[i] = rest[i];
                 i++;
             }
             uname[i] = '\0';
-            
+
             // Format JSON: {"cmd":"register","username":"...","password":"..."}
             char buf[512];
             int pos = 0;
@@ -382,24 +385,29 @@ static void execute_command(char* input)
             pos = str::append(buf, pos, password, 512);
             pos = str::append(buf, pos, "\"}", 512);
             hal->net_send(buf);
-        } else {
+        }
+        else
+        {
             hal->print("usage: register <username> <password>");
         }
         return;
     }
 
-    if (str::starts_with(trimmed, "login ")) {
+    if (str::starts_with(trimmed, "login "))
+    {
         const char* rest = str::trim(trimmed + 6);
         const char* password = str::after_space(rest);
-        if (password) {
+        if (password)
+        {
             char uname[128];
             int i = 0;
-            while (rest[i] && rest[i] != ' ' && i < 127) {
+            while (rest[i] && rest[i] != ' ' && i < 127)
+            {
                 uname[i] = rest[i];
                 i++;
             }
             uname[i] = '\0';
-            
+
             // Format JSON: {"cmd":"login","username":"...","password":"..."}
             char buf[512];
             int pos = 0;
@@ -408,26 +416,30 @@ static void execute_command(char* input)
             pos = str::append(buf, pos, "\",\"password\":\"", 512);
             pos = str::append(buf, pos, password, 512);
             pos = str::append(buf, pos, "\"}", 512);
-            
+
             // Reset cwd to / on login
             cwd[0] = '/';
             cwd[1] = '\0';
-            
+
             hal->net_send(buf);
-        } else {
+        }
+        else
+        {
             hal->print("usage: login <username> <password>");
         }
         return;
     }
 
-    if (str::eq(trimmed, "logout")) {
+    if (str::eq(trimmed, "logout"))
+    {
         cwd[0] = '/';
         cwd[1] = '\0';
         hal->net_send(json::cmd("logout"));
         return;
     }
 
-    if (str::starts_with(trimmed, "share ")) {
+    if (str::starts_with(trimmed, "share "))
+    {
         const char* file = str::trim(trimmed + 6);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
@@ -435,7 +447,8 @@ static void execute_command(char* input)
         return;
     }
 
-    if (str::starts_with(trimmed, "unshare ")) {
+    if (str::starts_with(trimmed, "unshare "))
+    {
         const char* file = str::trim(trimmed + 8);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
@@ -443,12 +456,14 @@ static void execute_command(char* input)
         return;
     }
 
-    if (str::eq(trimmed, "shared")) {
+    if (str::eq(trimmed, "shared"))
+    {
         hal->net_send(json::cmd("shared"));
         return;
     }
 
-    if (str::starts_with(trimmed, "download ")) {
+    if (str::starts_with(trimmed, "download "))
+    {
         const char* file = str::trim(trimmed + 9);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
@@ -456,7 +471,8 @@ static void execute_command(char* input)
         return;
     }
 
-    if (str::starts_with(trimmed, "upload ")) {
+    if (str::starts_with(trimmed, "upload "))
+    {
         const char* file = str::trim(trimmed + 7);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
