@@ -513,20 +513,23 @@ extern "C" void handle_net_response(const char* json_response)
     if (!json_response)
         return;
 
-    if (cd_pending && str::starts_with(json_response, "__stat__"))
+    if (str::starts_with(json_response, "__stat__"))
     {
-        cd_pending = false;
-        if (str::eq(json_response, "__stat__dir"))
+        if (cd_pending)
         {
-            str::copy(cwd, pending_cd, 256);
-            refresh_prompt();
+            cd_pending = false;
+            if (str::eq(json_response, "__stat__dir"))
+            {
+                str::copy(cwd, pending_cd, 256);
+                refresh_prompt();
+            }
+            else
+            {
+                hal->print("cd: no such directory: ");
+                hal->print(pending_cd);
+            }
+            pending_cd[0] = '\0';
         }
-        else
-        {
-            hal->print("cd: no such directory: ");
-            hal->print(pending_cd);
-        }
-        pending_cd[0] = '\0';
         return;
     }
 
