@@ -210,7 +210,8 @@ static void cmd_tldr(const char* topic)
         hal->print("");
         hal->print("  Available pages: help, clear, echo, version, whoami, pwd,");
         hal->print("  cd, ls, mkdir, rm, cat, write, edit, run, register, login,");
-        hal->print("  logout, share, unshare, shared, upload, download, chat");
+        hal->print("  cd, ls, mkdir, rm, cat, write, edit, run, register, login,");
+        hal->print("  logout, share, unshare, shared, upload, download, chat, zpm");
         return;
     }
     if (str::eq(topic, "help")) {
@@ -431,6 +432,19 @@ static void cmd_tldr(const char* topic)
         hal->print("  the chat panel for a full messaging experience.");
         return;
     }
+    if (str::eq(topic, "zpm")) {
+        hal->print("\033[1;36mzpm\033[0m - ZeroRing Package Manager");
+        hal->print("");
+        hal->print("  List available packages:");
+        hal->print("  \033[32m$\033[0m zpm list");
+        hal->print("");
+        hal->print("  Publish a script to the global registry:");
+        hal->print("  \033[32m$\033[0m zpm publish my_game.js");
+        hal->print("");
+        hal->print("  Install a package to your current directory:");
+        hal->print("  \033[32m$\033[0m zpm install snake_game.js");
+        return;
+    }
     hal->print("tldr: page not found for '");
     hal->print(topic);
     hal->print("'. Try 'tldr' to see available pages.");
@@ -463,6 +477,7 @@ static void cmd_help()
     hal->print("  download <file>   Download a remote file");
     hal->print("  chat <msg>        Broadcast message to all users");
     hal->print("  tldr <cmd>        Show practical command examples");
+    hal->print("  zpm <cmd>         ZeroRing Package Manager");
 }
 
 static void execute_command(char* input)
@@ -765,7 +780,61 @@ static void execute_command(char* input)
         }
         else
         {
-            hal->print("usage: chat <message>");
+            hal->print("Usage: chat [@user] <msg>");
+        }
+        return;
+    }
+
+    if (str::starts_with(trimmed, "zpm "))
+    {
+        const char* args = str::trim(trimmed + 4);
+        if (str::eq(args, "list")) {
+            hal->net_send(json::cmd("shared"));
+        }
+        else if (str::starts_with(args, "publish ")) {
+            const char* file = str::trim(args + 8);
+            if (file[0]) {
+                hal->net_send(json::cmd_path("share", file));
+            } else {
+                hal->print("Usage: zpm publish <file>");
+            }
+        }
+        else if (str::starts_with(args, "install ")) {
+            const char* pkg = str::trim(args + 8);
+            if (pkg[0]) {
+                char payload[512];
+                int idx = 0;
+                const char* p1 = "{\"cmd\":\"zpm_install\",\"package\":\"";
+                while (*p1 && idx < 500) payload[idx++] = *p1++;
+                
+                for (int i = 0; pkg[i] && idx < 500; i++) {
+                    if (pkg[i] == '"' || pkg[i] == '\\') payload[idx++] = '\\';
+                    payload[idx++] = pkg[i];
+                }
+                
+                const char* p2 = "\",\"cwd\":\"";
+                while (*p2 && idx < 500) payload[idx++] = *p2++;
+                
+                for (int i = 0; cwd[i] && idx < 500; i++) {
+                    if (cwd[i] == '"' || cwd[i] == '\\') payload[idx++] = '\\';
+                    payload[idx++] = cwd[i];
+                }
+                
+                payload[idx++] = '"';
+                payload[idx++] = '}';
+                payload[idx] = '\0';
+                
+                hal->net_send(payload);
+            } else {
+                hal->print("Usage: zpm install <package>");
+            }
+        }
+        else {
+            hal->print("ZeroRing Package Manager (zpm)");
+            hal->print("Usage:");
+            hal->print("  zpm list               - List all available packages");
+            hal->print("  zpm publish <file>     - Publish a script to the global registry");
+            hal->print("  zpm install <package>  - Install a package to current directory");
         }
         return;
     }
