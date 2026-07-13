@@ -221,6 +221,7 @@ static void cmd_help()
     hal->print("  shared            List all shared files");
     hal->print("  upload <file>     Upload a local file");
     hal->print("  download <file>   Download a remote file");
+    hal->print("  chat <msg>        Broadcast message to all users");
 }
 
 static void execute_command(char* input)
@@ -459,6 +460,25 @@ static void execute_command(char* input)
     if (str::eq(trimmed, "shared"))
     {
         hal->net_send(json::cmd("shared"));
+        return;
+    }
+    
+    if (str::starts_with(trimmed, "chat "))
+    {
+        const char* msg = str::trim(trimmed + 5);
+        if (msg[0])
+        {
+            char buf[512];
+            int pos = 0;
+            pos = str::copy(buf, "{\"cmd\":\"chat\",\"msg\":\"", 512);
+            pos = str::append(buf, pos, msg, 512);
+            pos = str::append(buf, pos, "\"}", 512);
+            hal->net_send(buf);
+        }
+        else
+        {
+            hal->print("usage: chat <message>");
+        }
         return;
     }
 
