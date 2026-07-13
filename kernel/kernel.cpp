@@ -212,7 +212,15 @@ static void cmd_help()
     hal->print("  cat <file>        Print file contents");
     hal->print("  write <f> <data>  Write data to a file");
     hal->print("  edit <file>       Open file in text editor");
-    hal->print("  run <file>        Execute python script");
+    hal->print("  run <file>        Execute script (.py, .js, .sh)");
+    hal->print("  register <u > <p> Create a new user account");
+    hal->print("  login <u> <p>     Log into your account");
+    hal->print("  logout            Log out of your account");
+    hal->print("  share <file>      Share a file publicly");
+    hal->print("  unshare <file>    Remove a shared file");
+    hal->print("  shared            List all shared files");
+    hal->print("  upload <file>     Upload a local file");
+    hal->print("  download <file>   Download a remote file");
 }
 
 static void execute_command(char* input)
@@ -241,7 +249,7 @@ static void execute_command(char* input)
 
     if (str::eq(trimmed, "whoami"))
     {
-        hal->print("root");
+        hal->net_send(json::cmd("whoami_user"));
         return;
     }
 
@@ -350,6 +358,114 @@ static void execute_command(char* input)
         {
             hal->print("usage: write <filename> <data>");
         }
+        return;
+    }
+
+    if (str::starts_with(trimmed, "register ")) {
+        const char* rest = str::trim(trimmed + 9);
+        const char* password = str::after_space(rest);
+        if (password) {
+            char uname[128];
+            int i = 0;
+            while (rest[i] && rest[i] != ' ' && i < 127) {
+                uname[i] = rest[i];
+                i++;
+            }
+            uname[i] = '\0';
+            
+            // Format JSON: {"cmd":"register","username":"...","password":"..."}
+            char buf[512];
+            int pos = 0;
+            pos = str::copy(buf, "{\"cmd\":\"register\",\"username\":\"", 512);
+            pos = str::append(buf, pos, uname, 512);
+            pos = str::append(buf, pos, "\",\"password\":\"", 512);
+            pos = str::append(buf, pos, password, 512);
+            pos = str::append(buf, pos, "\"}", 512);
+            hal->net_send(buf);
+        } else {
+            hal->print("usage: register <username> <password>");
+        }
+        return;
+    }
+
+    if (str::starts_with(trimmed, "login ")) {
+        const char* rest = str::trim(trimmed + 6);
+        const char* password = str::after_space(rest);
+        if (password) {
+            char uname[128];
+            int i = 0;
+            while (rest[i] && rest[i] != ' ' && i < 127) {
+                uname[i] = rest[i];
+                i++;
+            }
+            uname[i] = '\0';
+            
+            // Format JSON: {"cmd":"login","username":"...","password":"..."}
+            char buf[512];
+            int pos = 0;
+            pos = str::copy(buf, "{\"cmd\":\"login\",\"username\":\"", 512);
+            pos = str::append(buf, pos, uname, 512);
+            pos = str::append(buf, pos, "\",\"password\":\"", 512);
+            pos = str::append(buf, pos, password, 512);
+            pos = str::append(buf, pos, "\"}", 512);
+            
+            // Reset cwd to / on login
+            cwd[0] = '/';
+            cwd[1] = '\0';
+            
+            hal->net_send(buf);
+        } else {
+            hal->print("usage: login <username> <password>");
+        }
+        return;
+    }
+
+    if (str::eq(trimmed, "logout")) {
+        cwd[0] = '/';
+        cwd[1] = '\0';
+        hal->net_send(json::cmd("logout"));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "share ")) {
+        const char* file = str::trim(trimmed + 6);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        hal->net_send(json::cmd_path("share", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "unshare ")) {
+        const char* file = str::trim(trimmed + 8);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        hal->net_send(json::cmd_path("unshare", resolved));
+        return;
+    }
+
+    if (str::eq(trimmed, "shared")) {
+        hal->net_send(json::cmd("shared"));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "download ")) {
+        const char* file = str::trim(trimmed + 9);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        hal->net_send(json::cmd_path("download", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "upload ")) {
+        const char* file = str::trim(trimmed + 7);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        // We tell JS to prompt for a file and then it sends the upload command.
+        // Format: __upload__<resolved_path>
+        char buf[256];
+        int pos = str::copy(buf, "__upload__", 256);
+        str::append(buf, pos, resolved, 256);
+        hal->print(buf);
         return;
     }
 
