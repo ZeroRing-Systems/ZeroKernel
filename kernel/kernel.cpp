@@ -211,7 +211,7 @@ static void cmd_tldr(const char* topic)
         hal->print("");
         hal->print("  Available pages: help, clear, echo, version, whoami, pwd,");
         hal->print("  cd, ls, mkdir, rm, cat, write, edit, run, register, login,");
-        hal->print("  cd, ls, mkdir, rm, cat, write, edit, run, register, login,");
+        hal->print("  cd, ls, mkdir, rm, cat, write, touch, edit, run, register, login,");
         hal->print("  logout, share, unshare, shared, upload, download, chat, zpm");
         return;
     }
@@ -335,6 +335,14 @@ static void cmd_tldr(const char* topic)
         hal->print("");
         hal->print("  Create a Python script:");
         hal->print("  \033[32m$\033[0m write game.py print('Hello!')");
+        return;
+    }
+    if (str::eq(topic, "touch"))
+    {
+        hal->print("\033[1;36mtouch\033[0m - Create an empty file or update its timestamp");
+        hal->print("");
+        hal->print("  Create a new empty file:");
+        hal->print("  \033[32m$\033[0m touch new_file.txt");
         return;
     }
     if (str::eq(topic, "edit"))
@@ -490,6 +498,7 @@ static void cmd_help()
     hal->print("  rm <path>         Remove a file or empty dir");
     hal->print("  cat <file>        Print file contents");
     hal->print("  write <f> <data>  Write data to a file");
+    hal->print("  touch <file>      Create an empty file");
     hal->print("  edit <file>       Open file in text editor");
     hal->print("  run <file>        Execute script (.py, .js, .sh)");
     hal->print("  register <u> <p>  Create a new user account");
@@ -686,6 +695,15 @@ static void execute_command(char* input)
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
         dispatch_cmd(json::cmd_path("rm", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "touch "))
+    {
+        const char* file = str::trim(trimmed + 6);
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        dispatch_cmd(json::cmd_path("touch", resolved));
         return;
     }
 
