@@ -441,10 +441,41 @@ static void execute_command(char* input)
 
     if (str::starts_with(trimmed, "share "))
     {
-        const char* file = str::trim(trimmed + 6);
-        char resolved[256];
-        str::resolve_path(cwd, file, resolved, 256);
-        hal->net_send(json::cmd_path("share", resolved));
+        const char* args = str::trim(trimmed + 6);
+        char target_user[128] = {0};
+        char file[256] = {0};
+
+        if (args[0] == '@') {
+            int i = 0;
+            while (args[i] && args[i] != ' ') {
+                if (i > 0 && i < 127) target_user[i-1] = args[i];
+                i++;
+            }
+            if (args[i] == ' ') {
+                str::copy(file, str::trim(args + i), 256);
+            }
+        } else {
+            str::copy(file, args, 256);
+        }
+
+        if (file[0]) {
+            char resolved[256];
+            str::resolve_path(cwd, file, resolved, 256);
+            
+            char buf[1024];
+            int pos = str::copy(buf, "{\"cmd\":\"share\",\"path\":\"", 1024);
+            pos = str::append(buf, pos, resolved, 1024);
+            pos = str::append(buf, pos, "\"", 1024);
+            if (target_user[0]) {
+                pos = str::append(buf, pos, ",\"target\":\"", 1024);
+                pos = str::append(buf, pos, target_user, 1024);
+                pos = str::append(buf, pos, "\"", 1024);
+            }
+            pos = str::append(buf, pos, "}", 1024);
+            hal->net_send(buf);
+        } else {
+            hal->print("usage: share [@user] <file>");
+        }
         return;
     }
 
@@ -468,12 +499,7 @@ static void execute_command(char* input)
         const char* msg = str::trim(trimmed + 5);
         if (msg[0])
         {
-            char buf[512];
-            int pos = 0;
-            pos = str::copy(buf, "{\"cmd\":\"chat\",\"msg\":\"", 512);
-            pos = str::append(buf, pos, msg, 512);
-            pos = str::append(buf, pos, "\"}", 512);
-            hal->net_send(buf);
+            hal->net_send(json::cmd_path("chat", msg)); // We safely escape using path
         }
         else
         {
