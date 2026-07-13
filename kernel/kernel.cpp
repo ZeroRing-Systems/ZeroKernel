@@ -641,7 +641,26 @@ static void execute_command(char* input)
 
     if (str::starts_with(trimmed, "echo "))
     {
-        hal->print(trimmed + 5);
+        const char* msg = str::trim(trimmed + 5);
+        
+        // Remove quotes if present
+        char unquoted[256];
+        str::copy(unquoted, msg, 256);
+        if (unquoted[0] == '"') {
+            int len = 0; while(unquoted[len]) len++;
+            if (len > 1 && unquoted[len-1] == '"') {
+                unquoted[len-1] = '\0';
+                for(int i=0; unquoted[i]; i++) unquoted[i] = unquoted[i+1];
+            }
+        } else if (unquoted[0] == '\'') {
+            int len = 0; while(unquoted[len]) len++;
+            if (len > 1 && unquoted[len-1] == '\'') {
+                unquoted[len-1] = '\0';
+                for(int i=0; unquoted[i]; i++) unquoted[i] = unquoted[i+1];
+            }
+        }
+
+        dispatch_cmd(json::cmd_path("echo", unquoted));
         return;
     }
 
