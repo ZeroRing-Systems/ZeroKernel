@@ -505,8 +505,86 @@ static void cmd_help()
     hal->print("  zpm <cmd>         ZeroRing Package Manager");
 }
 
+static char g_pipe_target[256];
+static char g_redir_target[256];
+static bool g_redir_append;
+
+static void dispatch_cmd(const char* payload)
+{
+    if (!g_pipe_target[0] && !g_redir_target[0]) {
+        hal->net_send(payload);
+        return;
+    }
+    
+    char new_payload[1024];
+    int len = 0;
+    while (payload[len] && payload[len] != '}') {
+        new_payload[len] = payload[len];
+        len++;
+    }
+    
+    if (g_pipe_target[0]) {
+        const char* pipe_key = ",\"pipe\":\"";
+        for (int i = 0; pipe_key[i]; i++) new_payload[len++] = pipe_key[i];
+        for (int i = 0; g_pipe_target[i]; i++) {
+            if (g_pipe_target[i] == '"' || g_pipe_target[i] == '\\') new_payload[len++] = '\\';
+            new_payload[len++] = g_pipe_target[i];
+        }
+        new_payload[len++] = '"';
+    }
+    if (g_redir_target[0]) {
+        const char* red_key = ",\"redirect\":\"";
+        for (int i = 0; red_key[i]; i++) new_payload[len++] = red_key[i];
+        for (int i = 0; g_redir_target[i]; i++) {
+            if (g_redir_target[i] == '"' || g_redir_target[i] == '\\') new_payload[len++] = '\\';
+            new_payload[len++] = g_redir_target[i];
+        }
+        new_payload[len++] = '"';
+        
+        if (g_redir_append) {
+            const char* app_key = ",\"append\":\"true\"";
+            for (int i = 0; app_key[i]; i++) new_payload[len++] = app_key[i];
+        }
+    }
+    new_payload[len++] = '}';
+    new_payload[len] = '\0';
+    hal->net_send(new_payload);
+}
+
 static void execute_command(char* input)
 {
+    g_pipe_target[0] = '\0';
+    g_redir_target[0] = '\0';
+    g_redir_append = false;
+
+    char* pipe_pos = nullptr;
+    char* redir_pos = nullptr;
+
+    // Scan backwards so we don't mess up strings, simple for now
+    for (int i = 0; input[i]; i++) {
+        if (input[i] == '|' && !pipe_pos) pipe_pos = &input[i];
+        if (input[i] == '>' && !redir_pos) redir_pos = &input[i];
+    }
+
+    if (redir_pos) {
+        if (redir_pos[1] == '>') {
+            g_redir_append = true;
+            char resolved[256];
+            str::resolve_path(cwd, str::trim(redir_pos + 2), resolved, 256);
+            str::copy(g_redir_target, resolved, 256);
+        } else {
+            g_redir_append = false;
+            char resolved[256];
+            str::resolve_path(cwd, str::trim(redir_pos + 1), resolved, 256);
+            str::copy(g_redir_target, resolved, 256);
+        }
+        *redir_pos = '\0';
+    }
+    else if (pipe_pos) {
+        str::copy(g_pipe_target, str::trim(pipe_pos + 1), 256);
+        *pipe_pos = '\0';
+    }
+
     const char* trimmed = str::trim(input);
     if (trimmed[0] == '\0')
         return;
@@ -542,7 +620,7 @@ static void execute_command(char* input)
 
     if (str::eq(trimmed, "whoami"))
     {
-        hal->net_send(json::cmd("whoami_user"));
+        dispatch_cmd(json::cmd("whoami_user"));
         return;
     }
 
@@ -565,13 +643,13 @@ static void execute_command(char* input)
         str::resolve_path(cwd, target, resolved, 256);
         str::copy(pending_cd, resolved, 256);
         cd_pending = true;
-        hal->net_send(json::cmd_path("stat", resolved));
+        dispatch_cmd(json::cmd_path("stat", resolved));
         return;
     }
 
     if (str::eq(trimmed, "ls"))
     {
-        hal->net_send(json::cmd_path("ls", cwd));
+        dispatch_cmd(json::cmd_path("ls", cwd));
         return;
     }
 
@@ -580,7 +658,7 @@ static void execute_command(char* input)
         const char* path = str::trim(trimmed + 3);
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
-        hal->net_send(json::cmd_path("ls", resolved));
+        dispatch_cmd(json::cmd_path("ls", resolved));
         return;
     }
 
@@ -589,7 +667,7 @@ static void execute_command(char* input)
         const char* name = str::trim(trimmed + 6);
         char resolved[256];
         str::resolve_path(cwd, name, resolved, 256);
-        hal->net_send(json::cmd_path("mkdir", resolved));
+        dispatch_cmd(json::cmd_path("mkdir", resolved));
         return;
     }
 
@@ -598,7 +676,7 @@ static void execute_command(char* input)
         const char* file = str::trim(trimmed + 4);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
-        hal->net_send(json::cmd_path("cat", resolved));
+        dispatch_cmd(json::cmd_path("cat", resolved));
         return;
     }
 
@@ -607,7 +685,7 @@ static void execute_command(char* input)
         const char* path = str::trim(trimmed + 3);
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
-        hal->net_send(json::cmd_path("rm", resolved));
+        dispatch_cmd(json::cmd_path("rm", resolved));
         return;
     }
 
@@ -616,7 +694,7 @@ static void execute_command(char* input)
         const char* file = str::trim(trimmed + 5);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
-        hal->net_send(json::cmd_path("edit", resolved));
+        dispatch_cmd(json::cmd_path("edit", resolved));
         return;
     }
 
@@ -625,7 +703,7 @@ static void execute_command(char* input)
         const char* file = str::trim(trimmed + 4);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
-        hal->net_send(json::cmd_path("run", resolved));
+        dispatch_cmd(json::cmd_path("run", resolved));
         return;
     }
 
@@ -727,7 +805,7 @@ static void execute_command(char* input)
     {
         cwd[0] = '/';
         cwd[1] = '\0';
-        hal->net_send(json::cmd("logout"));
+        dispatch_cmd(json::cmd("logout"));
         return;
     }
 
@@ -786,13 +864,13 @@ static void execute_command(char* input)
         const char* file = str::trim(trimmed + 8);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
-        hal->net_send(json::cmd_path("unshare", resolved));
+        dispatch_cmd(json::cmd_path("unshare", resolved));
         return;
     }
 
     if (str::eq(trimmed, "shared"))
     {
-        hal->net_send(json::cmd("shared"));
+        dispatch_cmd(json::cmd("shared"));
         return;
     }
 
@@ -801,7 +879,7 @@ static void execute_command(char* input)
         const char* msg = str::trim(trimmed + 5);
         if (msg[0])
         {
-            hal->net_send(json::cmd_path("chat", msg)); // We safely escape using path
+            dispatch_cmd(json::cmd_path("chat", msg)); // We safely escape using path
         }
         else
         {
@@ -815,14 +893,14 @@ static void execute_command(char* input)
         const char* args = str::trim(trimmed + 4);
         if (str::eq(args, "list"))
         {
-            hal->net_send(json::cmd("shared"));
+            dispatch_cmd(json::cmd("shared"));
         }
         else if (str::starts_with(args, "publish "))
         {
             const char* file = str::trim(args + 8);
             if (file[0])
             {
-                hal->net_send(json::cmd_path("share", file));
+                dispatch_cmd(json::cmd_path("share", file));
             }
             else
             {
@@ -862,7 +940,7 @@ static void execute_command(char* input)
                 payload[idx++] = '}';
                 payload[idx] = '\0';
 
-                hal->net_send(payload);
+                dispatch_cmd(payload);
             }
             else
             {
@@ -885,7 +963,7 @@ static void execute_command(char* input)
         const char* file = str::trim(trimmed + 9);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
-        hal->net_send(json::cmd_path("download", resolved));
+        dispatch_cmd(json::cmd_path("download", resolved));
         return;
     }
 
