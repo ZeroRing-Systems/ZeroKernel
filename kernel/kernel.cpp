@@ -210,7 +210,6 @@ static void cmd_tldr(const char* topic)
         hal->print("    tldr chat");
         hal->print("");
         hal->print("  Available pages: help, clear, echo, version, whoami, pwd,");
-        hal->print("  cd, ls, mkdir, rm, cat, write, edit, run, register, login,");
         hal->print("  cd, ls, mkdir, rm, cat, write, touch, edit, run, register, login,");
         hal->print("  logout, share, unshare, shared, upload, download, chat, zpm");
         return;
