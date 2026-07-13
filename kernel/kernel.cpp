@@ -198,7 +198,8 @@ static void refresh_prompt()
 
 static void cmd_tldr(const char* topic)
 {
-    if (!topic[0] || str::eq(topic, "tldr")) {
+    if (!topic[0] || str::eq(topic, "tldr"))
+    {
         hal->print("\033[1;36mtldr\033[0m - Simplified, community-driven command examples");
         hal->print("");
         hal->print("  \033[32mUsage:\033[0m tldr <command>");
@@ -214,19 +215,22 @@ static void cmd_tldr(const char* topic)
         hal->print("  logout, share, unshare, shared, upload, download, chat, zpm");
         return;
     }
-    if (str::eq(topic, "help")) {
+    if (str::eq(topic, "help"))
+    {
         hal->print("\033[1;36mhelp\033[0m - Display all available commands");
         hal->print("");
         hal->print("  \033[32m$\033[0m help");
         return;
     }
-    if (str::eq(topic, "clear")) {
+    if (str::eq(topic, "clear"))
+    {
         hal->print("\033[1;36mclear\033[0m - Clear the terminal screen");
         hal->print("");
         hal->print("  \033[32m$\033[0m clear");
         return;
     }
-    if (str::eq(topic, "echo")) {
+    if (str::eq(topic, "echo"))
+    {
         hal->print("\033[1;36mecho\033[0m - Print text to the terminal");
         hal->print("");
         hal->print("  Print a simple message:");
@@ -236,13 +240,15 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m echo Build v1.0 deployed successfully");
         return;
     }
-    if (str::eq(topic, "version")) {
+    if (str::eq(topic, "version"))
+    {
         hal->print("\033[1;36mversion\033[0m - Show the ZeroRing kernel version");
         hal->print("");
         hal->print("  \033[32m$\033[0m version");
         return;
     }
-    if (str::eq(topic, "whoami")) {
+    if (str::eq(topic, "whoami"))
+    {
         hal->print("\033[1;36mwhoami\033[0m - Print the current user and session info");
         hal->print("");
         hal->print("  Check if you are logged in:");
@@ -254,14 +260,16 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[90mifkabir\033[0m");
         return;
     }
-    if (str::eq(topic, "pwd")) {
+    if (str::eq(topic, "pwd"))
+    {
         hal->print("\033[1;36mpwd\033[0m - Print the current working directory");
         hal->print("");
         hal->print("  \033[32m$\033[0m pwd");
         hal->print("  \033[90m/\033[0m");
         return;
     }
-    if (str::eq(topic, "cd")) {
+    if (str::eq(topic, "cd"))
+    {
         hal->print("\033[1;36mcd\033[0m - Change the current working directory");
         hal->print("");
         hal->print("  Navigate into a directory:");
@@ -274,7 +282,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m cd ..");
         return;
     }
-    if (str::eq(topic, "ls")) {
+    if (str::eq(topic, "ls"))
+    {
         hal->print("\033[1;36mls\033[0m - List directory contents");
         hal->print("");
         hal->print("  List files in the current directory:");
@@ -284,7 +293,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m ls /shared");
         return;
     }
-    if (str::eq(topic, "mkdir")) {
+    if (str::eq(topic, "mkdir"))
+    {
         hal->print("\033[1;36mmkdir\033[0m - Create a new directory");
         hal->print("");
         hal->print("  Create a project folder:");
@@ -294,7 +304,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m mkdir projects/webapp");
         return;
     }
-    if (str::eq(topic, "rm")) {
+    if (str::eq(topic, "rm"))
+    {
         hal->print("\033[1;36mrm\033[0m - Remove a file or empty directory");
         hal->print("");
         hal->print("  Delete a file:");
@@ -304,7 +315,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m rm temp");
         return;
     }
-    if (str::eq(topic, "cat")) {
+    if (str::eq(topic, "cat"))
+    {
         hal->print("\033[1;36mcat\033[0m - Print file contents to the terminal");
         hal->print("");
         hal->print("  View a file:");
@@ -314,7 +326,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m cat /shared/welcome.txt");
         return;
     }
-    if (str::eq(topic, "write")) {
+    if (str::eq(topic, "write"))
+    {
         hal->print("\033[1;36mwrite\033[0m - Write data to a file (creates or overwrites)");
         hal->print("");
         hal->print("  Create a text file:");
@@ -324,7 +337,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m write game.py print('Hello!')");
         return;
     }
-    if (str::eq(topic, "edit")) {
+    if (str::eq(topic, "edit"))
+    {
         hal->print("\033[1;36medit\033[0m - Open a file in the built-in GUI editor");
         hal->print("");
         hal->print("  Edit an existing file:");
@@ -335,7 +349,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m edit notes.md");
         return;
     }
-    if (str::eq(topic, "run")) {
+    if (str::eq(topic, "run"))
+    {
         hal->print("\033[1;36mrun\033[0m - Execute a script on the server sandbox");
         hal->print("");
         hal->print("  Run a Python script:");
@@ -350,7 +365,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[33mSupported:\033[0m .py, .js, .sh");
         return;
     }
-    if (str::eq(topic, "register")) {
+    if (str::eq(topic, "register"))
+    {
         hal->print("\033[1;36mregister\033[0m - Create a new persistent user account");
         hal->print("");
         hal->print("  Register with a username and password:");
@@ -359,7 +375,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[33mNote:\033[0m Files are saved permanently under /users/<name>");
         return;
     }
-    if (str::eq(topic, "login")) {
+    if (str::eq(topic, "login"))
+    {
         hal->print("\033[1;36mlogin\033[0m - Log into your account");
         hal->print("");
         hal->print("  \033[32m$\033[0m login alice mypassword");
@@ -367,13 +384,15 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[33mNote:\033[0m Your files from /users/<name> become accessible");
         return;
     }
-    if (str::eq(topic, "logout")) {
+    if (str::eq(topic, "logout"))
+    {
         hal->print("\033[1;36mlogout\033[0m - Log out and return to anonymous session");
         hal->print("");
         hal->print("  \033[32m$\033[0m logout");
         return;
     }
-    if (str::eq(topic, "share")) {
+    if (str::eq(topic, "share"))
+    {
         hal->print("\033[1;36mshare\033[0m - Share a file with the world or a specific user");
         hal->print("");
         hal->print("  Share a file globally (visible to everyone):");
@@ -386,13 +405,15 @@ static void cmd_tldr(const char* topic)
         hal->print("  the file directly into the target user's directory.");
         return;
     }
-    if (str::eq(topic, "unshare")) {
+    if (str::eq(topic, "unshare"))
+    {
         hal->print("\033[1;36munshare\033[0m - Remove a file from /shared/");
         hal->print("");
         hal->print("  \033[32m$\033[0m unshare game.py");
         return;
     }
-    if (str::eq(topic, "shared")) {
+    if (str::eq(topic, "shared"))
+    {
         hal->print("\033[1;36mshared\033[0m - List all globally shared files");
         hal->print("");
         hal->print("  \033[32m$\033[0m shared");
@@ -401,7 +422,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m cat /shared/game.py");
         return;
     }
-    if (str::eq(topic, "upload")) {
+    if (str::eq(topic, "upload"))
+    {
         hal->print("\033[1;36mupload\033[0m - Upload a file from your computer");
         hal->print("");
         hal->print("  Upload to a specific path:");
@@ -410,7 +432,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[33mTip:\033[0m You can also drag and drop files onto the terminal!");
         return;
     }
-    if (str::eq(topic, "download")) {
+    if (str::eq(topic, "download"))
+    {
         hal->print("\033[1;36mdownload\033[0m - Download a file to your computer");
         hal->print("");
         hal->print("  \033[32m$\033[0m download game.py");
@@ -419,7 +442,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m download /shared/welcome.txt");
         return;
     }
-    if (str::eq(topic, "chat")) {
+    if (str::eq(topic, "chat"))
+    {
         hal->print("\033[1;36mchat\033[0m - Send messages to other connected users");
         hal->print("");
         hal->print("  Broadcast to everyone (global channel):");
@@ -432,7 +456,8 @@ static void cmd_tldr(const char* topic)
         hal->print("  the chat panel for a full messaging experience.");
         return;
     }
-    if (str::eq(topic, "zpm")) {
+    if (str::eq(topic, "zpm"))
+    {
         hal->print("\033[1;36mzpm\033[0m - ZeroRing Package Manager");
         hal->print("");
         hal->print("  List available packages:");
@@ -467,7 +492,7 @@ static void cmd_help()
     hal->print("  write <f> <data>  Write data to a file");
     hal->print("  edit <file>       Open file in text editor");
     hal->print("  run <file>        Execute script (.py, .js, .sh)");
-    hal->print("  register <u> <p> Create a new user account");
+    hal->print("  register <u> <p>  Create a new user account");
     hal->print("  login <u> <p>     Log into your account");
     hal->print("  logout            Log out of your account");
     hal->print("  share <file>      Share a file publicly");
@@ -788,48 +813,64 @@ static void execute_command(char* input)
     if (str::starts_with(trimmed, "zpm "))
     {
         const char* args = str::trim(trimmed + 4);
-        if (str::eq(args, "list")) {
+        if (str::eq(args, "list"))
+        {
             hal->net_send(json::cmd("shared"));
         }
-        else if (str::starts_with(args, "publish ")) {
+        else if (str::starts_with(args, "publish "))
+        {
             const char* file = str::trim(args + 8);
-            if (file[0]) {
+            if (file[0])
+            {
                 hal->net_send(json::cmd_path("share", file));
-            } else {
+            }
+            else
+            {
                 hal->print("Usage: zpm publish <file>");
             }
         }
-        else if (str::starts_with(args, "install ")) {
+        else if (str::starts_with(args, "install "))
+        {
             const char* pkg = str::trim(args + 8);
-            if (pkg[0]) {
+            if (pkg[0])
+            {
                 char payload[512];
                 int idx = 0;
                 const char* p1 = "{\"cmd\":\"zpm_install\",\"package\":\"";
-                while (*p1 && idx < 500) payload[idx++] = *p1++;
-                
-                for (int i = 0; pkg[i] && idx < 500; i++) {
-                    if (pkg[i] == '"' || pkg[i] == '\\') payload[idx++] = '\\';
+                while (*p1 && idx < 500)
+                    payload[idx++] = *p1++;
+
+                for (int i = 0; pkg[i] && idx < 500; i++)
+                {
+                    if (pkg[i] == '"' || pkg[i] == '\\')
+                        payload[idx++] = '\\';
                     payload[idx++] = pkg[i];
                 }
-                
+
                 const char* p2 = "\",\"cwd\":\"";
-                while (*p2 && idx < 500) payload[idx++] = *p2++;
-                
-                for (int i = 0; cwd[i] && idx < 500; i++) {
-                    if (cwd[i] == '"' || cwd[i] == '\\') payload[idx++] = '\\';
+                while (*p2 && idx < 500)
+                    payload[idx++] = *p2++;
+
+                for (int i = 0; cwd[i] && idx < 500; i++)
+                {
+                    if (cwd[i] == '"' || cwd[i] == '\\')
+                        payload[idx++] = '\\';
                     payload[idx++] = cwd[i];
                 }
-                
+
                 payload[idx++] = '"';
                 payload[idx++] = '}';
                 payload[idx] = '\0';
-                
+
                 hal->net_send(payload);
-            } else {
+            }
+            else
+            {
                 hal->print("Usage: zpm install <package>");
             }
         }
-        else {
+        else
+        {
             hal->print("ZeroRing Package Manager (zpm)");
             hal->print("Usage:");
             hal->print("  zpm list               - List all available packages");
