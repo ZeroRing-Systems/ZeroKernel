@@ -182,7 +182,7 @@ static char cwd[256] = "/";
 static char pending_cd[256] = "";
 static bool cd_pending = false;
 
-static const char* VERSION = "ZeroRing OS v0.2.0";
+static const char* VERSION = "ZeroRing OS v1.0.0";
 static const char* PROMPT_FMT = "zeroring:";
 
 static char prompt_buf[320];
