@@ -196,6 +196,246 @@ static void refresh_prompt()
     hal->set_prompt(prompt_buf);
 }
 
+static void cmd_tldr(const char* topic)
+{
+    if (!topic[0] || str::eq(topic, "tldr")) {
+        hal->print("\033[1;36mtldr\033[0m - Simplified, community-driven command examples");
+        hal->print("");
+        hal->print("  \033[32mUsage:\033[0m tldr <command>");
+        hal->print("");
+        hal->print("  \033[33mExamples:\033[0m");
+        hal->print("    tldr ls");
+        hal->print("    tldr share");
+        hal->print("    tldr chat");
+        hal->print("");
+        hal->print("  Available pages: help, clear, echo, version, whoami, pwd,");
+        hal->print("  cd, ls, mkdir, rm, cat, write, edit, run, register, login,");
+        hal->print("  logout, share, unshare, shared, upload, download, chat");
+        return;
+    }
+    if (str::eq(topic, "help")) {
+        hal->print("\033[1;36mhelp\033[0m - Display all available commands");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m help");
+        return;
+    }
+    if (str::eq(topic, "clear")) {
+        hal->print("\033[1;36mclear\033[0m - Clear the terminal screen");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m clear");
+        return;
+    }
+    if (str::eq(topic, "echo")) {
+        hal->print("\033[1;36mecho\033[0m - Print text to the terminal");
+        hal->print("");
+        hal->print("  Print a simple message:");
+        hal->print("  \033[32m$\033[0m echo Hello, World!");
+        hal->print("");
+        hal->print("  Print a variable-like message:");
+        hal->print("  \033[32m$\033[0m echo Build v1.0 deployed successfully");
+        return;
+    }
+    if (str::eq(topic, "version")) {
+        hal->print("\033[1;36mversion\033[0m - Show the ZeroRing kernel version");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m version");
+        return;
+    }
+    if (str::eq(topic, "whoami")) {
+        hal->print("\033[1;36mwhoami\033[0m - Print the current user and session info");
+        hal->print("");
+        hal->print("  Check if you are logged in:");
+        hal->print("  \033[32m$\033[0m whoami");
+        hal->print("  \033[90manonymous (session: 8f032115...)\033[0m");
+        hal->print("");
+        hal->print("  After logging in:");
+        hal->print("  \033[32m$\033[0m whoami");
+        hal->print("  \033[90mifkabir\033[0m");
+        return;
+    }
+    if (str::eq(topic, "pwd")) {
+        hal->print("\033[1;36mpwd\033[0m - Print the current working directory");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m pwd");
+        hal->print("  \033[90m/\033[0m");
+        return;
+    }
+    if (str::eq(topic, "cd")) {
+        hal->print("\033[1;36mcd\033[0m - Change the current working directory");
+        hal->print("");
+        hal->print("  Navigate into a directory:");
+        hal->print("  \033[32m$\033[0m cd projects");
+        hal->print("");
+        hal->print("  Go back to root:");
+        hal->print("  \033[32m$\033[0m cd /");
+        hal->print("");
+        hal->print("  Go up one level:");
+        hal->print("  \033[32m$\033[0m cd ..");
+        return;
+    }
+    if (str::eq(topic, "ls")) {
+        hal->print("\033[1;36mls\033[0m - List directory contents");
+        hal->print("");
+        hal->print("  List files in the current directory:");
+        hal->print("  \033[32m$\033[0m ls");
+        hal->print("");
+        hal->print("  List files in a specific path:");
+        hal->print("  \033[32m$\033[0m ls /shared");
+        return;
+    }
+    if (str::eq(topic, "mkdir")) {
+        hal->print("\033[1;36mmkdir\033[0m - Create a new directory");
+        hal->print("");
+        hal->print("  Create a project folder:");
+        hal->print("  \033[32m$\033[0m mkdir projects");
+        hal->print("");
+        hal->print("  Create a nested directory:");
+        hal->print("  \033[32m$\033[0m mkdir projects/webapp");
+        return;
+    }
+    if (str::eq(topic, "rm")) {
+        hal->print("\033[1;36mrm\033[0m - Remove a file or empty directory");
+        hal->print("");
+        hal->print("  Delete a file:");
+        hal->print("  \033[32m$\033[0m rm old_script.py");
+        hal->print("");
+        hal->print("  Delete an empty directory:");
+        hal->print("  \033[32m$\033[0m rm temp");
+        return;
+    }
+    if (str::eq(topic, "cat")) {
+        hal->print("\033[1;36mcat\033[0m - Print file contents to the terminal");
+        hal->print("");
+        hal->print("  View a file:");
+        hal->print("  \033[32m$\033[0m cat readme.txt");
+        hal->print("");
+        hal->print("  View a shared file:");
+        hal->print("  \033[32m$\033[0m cat /shared/welcome.txt");
+        return;
+    }
+    if (str::eq(topic, "write")) {
+        hal->print("\033[1;36mwrite\033[0m - Write data to a file (creates or overwrites)");
+        hal->print("");
+        hal->print("  Create a text file:");
+        hal->print("  \033[32m$\033[0m write hello.txt Hello, ZeroRing!");
+        hal->print("");
+        hal->print("  Create a Python script:");
+        hal->print("  \033[32m$\033[0m write game.py print('Hello!')");
+        return;
+    }
+    if (str::eq(topic, "edit")) {
+        hal->print("\033[1;36medit\033[0m - Open a file in the built-in GUI editor");
+        hal->print("");
+        hal->print("  Edit an existing file:");
+        hal->print("  \033[32m$\033[0m edit game.py");
+        hal->print("");
+        hal->print("  Create and edit a new file:");
+        hal->print("  \033[32m$\033[0m write notes.md \"\"");
+        hal->print("  \033[32m$\033[0m edit notes.md");
+        return;
+    }
+    if (str::eq(topic, "run")) {
+        hal->print("\033[1;36mrun\033[0m - Execute a script on the server sandbox");
+        hal->print("");
+        hal->print("  Run a Python script:");
+        hal->print("  \033[32m$\033[0m run game.py");
+        hal->print("");
+        hal->print("  Run a JavaScript file:");
+        hal->print("  \033[32m$\033[0m run app.js");
+        hal->print("");
+        hal->print("  Run a shell script:");
+        hal->print("  \033[32m$\033[0m run deploy.sh");
+        hal->print("");
+        hal->print("  \033[33mSupported:\033[0m .py, .js, .sh");
+        return;
+    }
+    if (str::eq(topic, "register")) {
+        hal->print("\033[1;36mregister\033[0m - Create a new persistent user account");
+        hal->print("");
+        hal->print("  Register with a username and password:");
+        hal->print("  \033[32m$\033[0m register alice mypassword");
+        hal->print("");
+        hal->print("  \033[33mNote:\033[0m Files are saved permanently under /users/<name>");
+        return;
+    }
+    if (str::eq(topic, "login")) {
+        hal->print("\033[1;36mlogin\033[0m - Log into your account");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m login alice mypassword");
+        hal->print("");
+        hal->print("  \033[33mNote:\033[0m Your files from /users/<name> become accessible");
+        return;
+    }
+    if (str::eq(topic, "logout")) {
+        hal->print("\033[1;36mlogout\033[0m - Log out and return to anonymous session");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m logout");
+        return;
+    }
+    if (str::eq(topic, "share")) {
+        hal->print("\033[1;36mshare\033[0m - Share a file with the world or a specific user");
+        hal->print("");
+        hal->print("  Share a file globally (visible to everyone):");
+        hal->print("  \033[32m$\033[0m share game.py");
+        hal->print("");
+        hal->print("  Share a file privately with a user:");
+        hal->print("  \033[32m$\033[0m share @alice game.py");
+        hal->print("");
+        hal->print("  \033[33mNote:\033[0m Global shares go to /shared/, private shares copy");
+        hal->print("  the file directly into the target user's directory.");
+        return;
+    }
+    if (str::eq(topic, "unshare")) {
+        hal->print("\033[1;36munshare\033[0m - Remove a file from /shared/");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m unshare game.py");
+        return;
+    }
+    if (str::eq(topic, "shared")) {
+        hal->print("\033[1;36mshared\033[0m - List all globally shared files");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m shared");
+        hal->print("");
+        hal->print("  Read a shared file:");
+        hal->print("  \033[32m$\033[0m cat /shared/game.py");
+        return;
+    }
+    if (str::eq(topic, "upload")) {
+        hal->print("\033[1;36mupload\033[0m - Upload a file from your computer");
+        hal->print("");
+        hal->print("  Upload to a specific path:");
+        hal->print("  \033[32m$\033[0m upload myfile.txt");
+        hal->print("");
+        hal->print("  \033[33mTip:\033[0m You can also drag and drop files onto the terminal!");
+        return;
+    }
+    if (str::eq(topic, "download")) {
+        hal->print("\033[1;36mdownload\033[0m - Download a file to your computer");
+        hal->print("");
+        hal->print("  \033[32m$\033[0m download game.py");
+        hal->print("");
+        hal->print("  Download a shared file:");
+        hal->print("  \033[32m$\033[0m download /shared/welcome.txt");
+        return;
+    }
+    if (str::eq(topic, "chat")) {
+        hal->print("\033[1;36mchat\033[0m - Send messages to other connected users");
+        hal->print("");
+        hal->print("  Broadcast to everyone (global channel):");
+        hal->print("  \033[32m$\033[0m chat Hello everyone!");
+        hal->print("");
+        hal->print("  Send a private message to a specific user:");
+        hal->print("  \033[32m$\033[0m chat @alice Hey, check out my script!");
+        hal->print("");
+        hal->print("  \033[33mTip:\033[0m Click the Chat button in the title bar to open");
+        hal->print("  the chat panel for a full messaging experience.");
+        return;
+    }
+    hal->print("tldr: page not found for '");
+    hal->print(topic);
+    hal->print("'. Try 'tldr' to see available pages.");
+}
+
 static void cmd_help()
 {
     hal->print("Built-in commands:");
@@ -213,7 +453,7 @@ static void cmd_help()
     hal->print("  write <f> <data>  Write data to a file");
     hal->print("  edit <file>       Open file in text editor");
     hal->print("  run <file>        Execute script (.py, .js, .sh)");
-    hal->print("  register <u > <p> Create a new user account");
+    hal->print("  register <u> <p> Create a new user account");
     hal->print("  login <u> <p>     Log into your account");
     hal->print("  logout            Log out of your account");
     hal->print("  share <file>      Share a file publicly");
@@ -222,6 +462,7 @@ static void cmd_help()
     hal->print("  upload <file>     Upload a local file");
     hal->print("  download <file>   Download a remote file");
     hal->print("  chat <msg>        Broadcast message to all users");
+    hal->print("  tldr <cmd>        Show practical command examples");
 }
 
 static void execute_command(char* input)
@@ -239,6 +480,17 @@ static void execute_command(char* input)
     if (str::eq(trimmed, "help"))
     {
         cmd_help();
+        return;
+    }
+
+    if (str::eq(trimmed, "tldr"))
+    {
+        cmd_tldr("");
+        return;
+    }
+    if (str::starts_with(trimmed, "tldr "))
+    {
+        cmd_tldr(str::trim(trimmed + 5));
         return;
     }
 
@@ -445,35 +697,45 @@ static void execute_command(char* input)
         char target_user[128] = {0};
         char file[256] = {0};
 
-        if (args[0] == '@') {
+        if (args[0] == '@')
+        {
             int i = 0;
-            while (args[i] && args[i] != ' ') {
-                if (i > 0 && i < 127) target_user[i-1] = args[i];
+            while (args[i] && args[i] != ' ')
+            {
+                if (i > 0 && i < 127)
+                    target_user[i - 1] = args[i];
                 i++;
             }
-            if (args[i] == ' ') {
+            if (args[i] == ' ')
+            {
                 str::copy(file, str::trim(args + i), 256);
             }
-        } else {
+        }
+        else
+        {
             str::copy(file, args, 256);
         }
 
-        if (file[0]) {
+        if (file[0])
+        {
             char resolved[256];
             str::resolve_path(cwd, file, resolved, 256);
-            
+
             char buf[1024];
             int pos = str::copy(buf, "{\"cmd\":\"share\",\"path\":\"", 1024);
             pos = str::append(buf, pos, resolved, 1024);
             pos = str::append(buf, pos, "\"", 1024);
-            if (target_user[0]) {
+            if (target_user[0])
+            {
                 pos = str::append(buf, pos, ",\"target\":\"", 1024);
                 pos = str::append(buf, pos, target_user, 1024);
                 pos = str::append(buf, pos, "\"", 1024);
             }
             pos = str::append(buf, pos, "}", 1024);
             hal->net_send(buf);
-        } else {
+        }
+        else
+        {
             hal->print("usage: share [@user] <file>");
         }
         return;
@@ -493,7 +755,7 @@ static void execute_command(char* input)
         hal->net_send(json::cmd("shared"));
         return;
     }
-    
+
     if (str::starts_with(trimmed, "chat "))
     {
         const char* msg = str::trim(trimmed + 5);
