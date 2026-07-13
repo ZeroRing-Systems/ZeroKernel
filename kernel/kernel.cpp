@@ -593,6 +593,14 @@ static void execute_command(char* input)
         *pipe_pos = '\0';
     }
 
+    // Right-trim input to prevent trailing spaces from breaking command parsing
+    int ilen = 0;
+    while (input[ilen]) ilen++;
+    while (ilen > 0 && (input[ilen-1] == ' ' || input[ilen-1] == '\t')) {
+        ilen--;
+        input[ilen] = '\0';
+    }
+
     const char* trimmed = str::trim(input);
     if (trimmed[0] == '\0')
         return;
