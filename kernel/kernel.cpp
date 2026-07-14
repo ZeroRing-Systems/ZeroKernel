@@ -299,7 +299,7 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m ls");
         hal->print("");
         hal->print("  List files in a specific path:");
-        hal->print("  \033[32m$\033[0m ls /public");
+        hal->print("  \033[32m$\033[0m ls /shared");
         return;
     }
     if (str::eq(topic, "mkdir"))
@@ -330,9 +330,6 @@ static void cmd_tldr(const char* topic)
         hal->print("");
         hal->print("  View a file:");
         hal->print("  \033[32m$\033[0m cat readme.txt");
-        hal->print("");
-        hal->print("  View a shared file:");
-        hal->print("  \033[32m$\033[0m cat /public/welcome.txt");
         return;
     }
     if (str::eq(topic, "write"))
@@ -418,13 +415,13 @@ static void cmd_tldr(const char* topic)
         hal->print("  Share a file privately with a user:");
         hal->print("  \033[32m$\033[0m share @alice game.py");
         hal->print("");
-        hal->print("  \033[33mNote:\033[0m Global shares go to /public/, private shares copy");
-        hal->print("  the file directly into the target user's directory.");
+        hal->print("  \033[33mNote:\033[0m Private shares copy the file directly into");
+        hal->print("  the target user's /shared directory.");
         return;
     }
     if (str::eq(topic, "unshare"))
     {
-        hal->print("\033[1;36munshare\033[0m - Remove a file from /public/");
+        hal->print("\033[1;36munshare\033[0m - Remove a published file from global registry");
         hal->print("");
         hal->print("  \033[32m$\033[0m unshare game.py");
         return;
@@ -434,9 +431,6 @@ static void cmd_tldr(const char* topic)
         hal->print("\033[1;36mshared\033[0m - List all globally shared files");
         hal->print("");
         hal->print("  \033[32m$\033[0m shared");
-        hal->print("");
-        hal->print("  Read a shared file:");
-        hal->print("  \033[32m$\033[0m cat /public/game.py");
         return;
     }
     if (str::eq(topic, "upload"))
@@ -454,9 +448,6 @@ static void cmd_tldr(const char* topic)
         hal->print("\033[1;36mdownload\033[0m - Download a file to your computer");
         hal->print("");
         hal->print("  \033[32m$\033[0m download game.py");
-        hal->print("");
-        hal->print("  Download a shared file:");
-        hal->print("  \033[32m$\033[0m download /public/welcome.txt");
         return;
     }
     if (str::eq(topic, "chat"))
@@ -885,7 +876,9 @@ static void execute_command(char* input)
         }
         else
         {
-            str::copy(file, args, 256);
+            hal->print("\033[31mError:\033[0m You must specify a target user (e.g., share @user file.txt).");
+            hal->print("To publish a package globally, use \033[36mzpm publish <file>\033[0m.");
+            return;
         }
 
         if (file[0])
@@ -956,7 +949,12 @@ static void execute_command(char* input)
             {
                 char resolved[256];
                 str::resolve_path(cwd, file, resolved, 256);
-                dispatch_cmd(json::cmd_path("share", resolved));
+                
+                char buf[1024];
+                int pos = str::copy(buf, "{\"cmd\":\"share\",\"path\":\"", 1024);
+                pos = str::append(buf, pos, resolved, 1024);
+                pos = str::append(buf, pos, "\",\"target\":\"global\"}", 1024);
+                dispatch_cmd(buf);
             }
             else
             {
