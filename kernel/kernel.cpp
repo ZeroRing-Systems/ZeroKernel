@@ -95,6 +95,9 @@ static void resolve_path(const char* cwd, const char* target, char* resolved, in
         if (l > 1)
         {
             l--;
+            // If we are sitting on a trailing slash, step back one more
+            if (l > 0 && resolved[l] == '/')
+                l--;
             while (l > 0 && resolved[l] != '/')
                 l--;
             if (l == 0)
@@ -106,11 +109,18 @@ static void resolve_path(const char* cwd, const char* target, char* resolved, in
     {
         copy(resolved, cwd, max);
         int l = len(resolved);
-        if (l > 1)
+        if (l > 1 && resolved[l-1] != '/')
         {
             l = append(resolved, l, "/", max);
         }
         append(resolved, l, target, max);
+    }
+
+    // Clean any trailing slash (unless the path is exactly "/")
+    int final_l = len(resolved);
+    if (final_l > 1 && resolved[final_l-1] == '/')
+    {
+        resolved[final_l-1] = '\0';
     }
 }
 
