@@ -563,6 +563,39 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m cp notes.txt docs");
         return;
     }
+    if (str::eq(topic, "head"))
+    {
+        hal->print("\033[1;36mhead\033[0m - Output first part of files / pipe");
+        hal->print("");
+        hal->print("  Print first 10 lines of a file:");
+        hal->print("  \033[32m$\033[0m head file.txt");
+        hal->print("");
+        hal->print("  Print first 5 lines:");
+        hal->print("  \033[32m$\033[0m head -n 5 file.txt");
+        return;
+    }
+    if (str::eq(topic, "tail"))
+    {
+        hal->print("\033[1;36mtail\033[0m - Output last part of files / pipe");
+        hal->print("");
+        hal->print("  Print last 10 lines of a file:");
+        hal->print("  \033[32m$\033[0m tail file.txt");
+        hal->print("");
+        hal->print("  Print last 5 lines:");
+        hal->print("  \033[32m$\033[0m tail -n 5 file.txt");
+        return;
+    }
+    if (str::eq(topic, "wc"))
+    {
+        hal->print("\033[1;36mwc\033[0m - Print line, word, and byte counts");
+        hal->print("");
+        hal->print("  Count lines, words, chars in a file:");
+        hal->print("  \033[32m$\033[0m wc file.txt");
+        hal->print("");
+        hal->print("  Count only lines (-l), words (-w), or chars (-c):");
+        hal->print("  \033[32m$\033[0m wc -l file.txt");
+        return;
+    }
     if (str::eq(topic, "alias") || str::eq(topic, "unalias"))
     {
         hal->print("\033[1;36malias / unalias\033[0m - Command Aliasing");
@@ -599,6 +632,9 @@ static void cmd_help()
     hal->print("  mv <src> <dest>   Move or rename a file/dir");
     hal->print("  cp <src> <dest>   Copy a file");
     hal->print("  cat <file>        Print file contents");
+    hal->print("  head [-n N] <f>   Print first N lines of a file");
+    hal->print("  tail [-n N] <f>   Print last N lines of a file");
+    hal->print("  wc [-l|-w|-c] <f> Count lines, words, chars");
     hal->print("  write <f> <data>  Write data to a file");
     hal->print("  touch <file>      Create an empty file");
     hal->print("  edit <file>       Open file in text editor");
@@ -791,6 +827,212 @@ static void cmd_alias_list()
     }
 }
 
+static int g_local_filter = 0;
+static int g_filter_lines = 10;
+static int g_filter_wc_mode = 0;
+static char g_filter_arg[128];
+
+static int int_to_str(char* buf, int n)
+{
+    if (n == 0)
+    {
+        buf[0] = '0';
+        buf[1] = '\0';
+        return 1;
+    }
+    char tmp[32];
+    int tpos = 0;
+    while (n > 0 && tpos < 31)
+    {
+        tmp[tpos++] = (char)('0' + (n % 10));
+        n /= 10;
+    }
+    for (int i = 0; i < tpos; i++)
+    {
+        buf[i] = tmp[tpos - 1 - i];
+    }
+    buf[tpos] = '\0';
+    return tpos;
+}
+
+static void apply_text_filter(const char* input, char* output, int max_len)
+{
+    if (g_local_filter == 1) // head
+    {
+        if (g_filter_lines <= 0) { output[0] = '\0'; return; }
+        int lines_seen = 0;
+        int i = 0;
+        int o = 0;
+        while (input[i] && o < max_len - 1)
+        {
+            output[o++] = input[i];
+            if (input[i] == '\n')
+            {
+                lines_seen++;
+                if (lines_seen >= g_filter_lines)
+                    break;
+            }
+            i++;
+        }
+        output[o] = '\0';
+    }
+    else if (g_local_filter == 2) // tail
+    {
+        if (g_filter_lines <= 0) { output[0] = '\0'; return; }
+        int total_lines = 0;
+        int len = 0;
+        while (input[len])
+        {
+            if (input[len] == '\n')
+                total_lines++;
+            len++;
+        }
+        if (len > 0 && input[len - 1] != '\n')
+            total_lines++;
+            
+        if (total_lines <= g_filter_lines)
+        {
+            str::copy(output, input, max_len);
+        }
+        else
+        {
+            int lines_to_skip = total_lines - g_filter_lines;
+            int skipped = 0;
+            int i = 0;
+            while (input[i] && skipped < lines_to_skip)
+            {
+                if (input[i] == '\n')
+                    skipped++;
+                i++;
+            }
+            int o = 0;
+            while (input[i] && o < max_len - 1)
+            {
+                output[o++] = input[i++];
+            }
+            output[o] = '\0';
+        }
+    }
+    else if (g_local_filter == 3) // wc
+    {
+        int lines = 0;
+        int words = 0;
+        int chars = 0;
+        bool in_word = false;
+        int i = 0;
+        while (input[i])
+        {
+            chars++;
+            char c = input[i];
+            if (c == '\n')
+                lines++;
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+            {
+                in_word = false;
+            }
+            else if (!in_word)
+            {
+                in_word = true;
+                words++;
+            }
+            i++;
+        }
+        int o = 0;
+        char nbuf[32];
+        if (g_filter_wc_mode == 1 || g_filter_wc_mode == 0)
+        {
+            o = str::append(output, o, "  ", max_len);
+            int_to_str(nbuf, lines);
+            o = str::append(output, o, nbuf, max_len);
+        }
+        if (g_filter_wc_mode == 2 || g_filter_wc_mode == 0)
+        {
+            o = str::append(output, o, "  ", max_len);
+            int_to_str(nbuf, words);
+            o = str::append(output, o, nbuf, max_len);
+        }
+        if (g_filter_wc_mode == 3 || g_filter_wc_mode == 0)
+        {
+            o = str::append(output, o, "  ", max_len);
+            int_to_str(nbuf, chars);
+            o = str::append(output, o, nbuf, max_len);
+        }
+        if (g_filter_arg[0])
+        {
+            o = str::append(output, o, " ", max_len);
+            o = str::append(output, o, g_filter_arg, max_len);
+        }
+        output[o] = '\0';
+    }
+    else if (g_local_filter == 4) // grep
+    {
+        int i = 0;
+        int o = 0;
+        char line[512];
+        int lpos = 0;
+        while (input[i] && o < max_len - 1)
+        {
+            char c = input[i++];
+            if (c != '\n' && lpos < 511)
+            {
+                line[lpos++] = c;
+            }
+            else
+            {
+                line[lpos] = '\0';
+                bool match = false;
+                int flen = str::len(g_filter_arg);
+                if (flen <= lpos)
+                {
+                    for (int k = 0; k <= lpos - flen; k++)
+                    {
+                        bool ok = true;
+                        for (int m = 0; m < flen; m++)
+                        {
+                            if (line[k + m] != g_filter_arg[m]) { ok = false; break; }
+                        }
+                        if (ok) { match = true; break; }
+                    }
+                }
+                if (match)
+                {
+                    o = str::append(output, o, line, max_len);
+                    if (o < max_len - 1) output[o++] = '\n';
+                    output[o] = '\0';
+                }
+                lpos = 0;
+            }
+        }
+        if (lpos > 0 && o < max_len - 1)
+        {
+            line[lpos] = '\0';
+            bool match = false;
+            int flen = str::len(g_filter_arg);
+            if (flen <= lpos)
+            {
+                for (int k = 0; k <= lpos - flen; k++)
+                {
+                    bool ok = true;
+                    for (int m = 0; m < flen; m++)
+                    {
+                        if (line[k + m] != g_filter_arg[m]) { ok = false; break; }
+                    }
+                    if (ok) { match = true; break; }
+                }
+            }
+            if (match)
+            {
+                o = str::append(output, o, line, max_len);
+            }
+        }
+        output[o] = '\0';
+    }
+    else
+    {
+        str::copy(output, input, max_len);
+    }
+}
+
 static char g_pipe_target[256];
 static char g_redir_target[256];
 static bool g_redir_append;
@@ -912,6 +1154,52 @@ static void execute_command(char* input)
     else if (pipe_pos) {
         str::copy(g_pipe_target, str::trim(pipe_pos + 1), 256);
         *pipe_pos = '\0';
+        const char* pcmd = g_pipe_target;
+        if (str::starts_with(pcmd, "head ") || str::eq(pcmd, "head")) {
+            g_local_filter = 1;
+            g_filter_lines = 10;
+            const char* args = (pcmd[4] == ' ') ? str::trim(pcmd + 5) : "";
+            if (str::starts_with(args, "-n ")) {
+                g_filter_lines = 0;
+                const char* nptr = str::trim(args + 3);
+                while (*nptr >= '0' && *nptr <= '9') {
+                    g_filter_lines = g_filter_lines * 10 + (*nptr - '0');
+                    nptr++;
+                }
+                if (g_filter_lines <= 0) g_filter_lines = 10;
+            }
+            g_pipe_target[0] = '\0';
+        }
+        else if (str::starts_with(pcmd, "tail ") || str::eq(pcmd, "tail")) {
+            g_local_filter = 2;
+            g_filter_lines = 10;
+            const char* args = (pcmd[4] == ' ') ? str::trim(pcmd + 5) : "";
+            if (str::starts_with(args, "-n ")) {
+                g_filter_lines = 0;
+                const char* nptr = str::trim(args + 3);
+                while (*nptr >= '0' && *nptr <= '9') {
+                    g_filter_lines = g_filter_lines * 10 + (*nptr - '0');
+                    nptr++;
+                }
+                if (g_filter_lines <= 0) g_filter_lines = 10;
+            }
+            g_pipe_target[0] = '\0';
+        }
+        else if (str::starts_with(pcmd, "wc ") || str::eq(pcmd, "wc")) {
+            g_local_filter = 3;
+            g_filter_wc_mode = 0;
+            g_filter_arg[0] = '\0';
+            const char* args = (pcmd[2] == ' ') ? str::trim(pcmd + 3) : "";
+            if (str::eq(args, "-l") || str::starts_with(args, "-l ")) g_filter_wc_mode = 1;
+            else if (str::eq(args, "-w") || str::starts_with(args, "-w ")) g_filter_wc_mode = 2;
+            else if (str::eq(args, "-c") || str::starts_with(args, "-c ")) g_filter_wc_mode = 3;
+            g_pipe_target[0] = '\0';
+        }
+        else if (str::starts_with(pcmd, "grep ")) {
+            g_local_filter = 4;
+            str::copy(g_filter_arg, str::trim(pcmd + 5), 128);
+            g_pipe_target[0] = '\0';
+        }
     }
 
     // Right-trim input to prevent trailing spaces from breaking command parsing
@@ -1263,6 +1551,94 @@ static void execute_command(char* input)
         const char* file = str::trim(trimmed + 4);
         char resolved[256];
         str::resolve_path(cwd, file, resolved, 256);
+        dispatch_cmd(json::cmd_path("cat", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "head ") || str::eq(trimmed, "head"))
+    {
+        g_local_filter = 1;
+        g_filter_lines = 10;
+        const char* args = (trimmed[4] == ' ') ? str::trim(trimmed + 5) : "";
+        if (str::starts_with(args, "-n ")) {
+            g_filter_lines = 0;
+            const char* nptr = str::trim(args + 3);
+            while (*nptr >= '0' && *nptr <= '9') {
+                g_filter_lines = g_filter_lines * 10 + (*nptr - '0');
+                nptr++;
+            }
+            if (g_filter_lines <= 0) g_filter_lines = 10;
+            args = str::trim(nptr);
+        }
+        if (args[0] == '\0') {
+            hal->print("head: missing file operand");
+            g_local_filter = 0;
+            return;
+        }
+        char resolved[256];
+        str::resolve_path(cwd, args, resolved, 256);
+        dispatch_cmd(json::cmd_path("cat", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "tail ") || str::eq(trimmed, "tail"))
+    {
+        g_local_filter = 2;
+        g_filter_lines = 10;
+        const char* args = (trimmed[4] == ' ') ? str::trim(trimmed + 5) : "";
+        if (str::starts_with(args, "-n ")) {
+            g_filter_lines = 0;
+            const char* nptr = str::trim(args + 3);
+            while (*nptr >= '0' && *nptr <= '9') {
+                g_filter_lines = g_filter_lines * 10 + (*nptr - '0');
+                nptr++;
+            }
+            if (g_filter_lines <= 0) g_filter_lines = 10;
+            args = str::trim(nptr);
+        }
+        if (args[0] == '\0') {
+            hal->print("tail: missing file operand");
+            g_local_filter = 0;
+            return;
+        }
+        char resolved[256];
+        str::resolve_path(cwd, args, resolved, 256);
+        dispatch_cmd(json::cmd_path("cat", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "wc ") || str::eq(trimmed, "wc"))
+    {
+        g_local_filter = 3;
+        g_filter_wc_mode = 0;
+        const char* args = (trimmed[2] == ' ') ? str::trim(trimmed + 3) : "";
+        if (str::starts_with(args, "-l ")) {
+            g_filter_wc_mode = 1;
+            args = str::trim(args + 3);
+        } else if (str::eq(args, "-l")) {
+            g_filter_wc_mode = 1;
+            args = "";
+        } else if (str::starts_with(args, "-w ")) {
+            g_filter_wc_mode = 2;
+            args = str::trim(args + 3);
+        } else if (str::eq(args, "-w")) {
+            g_filter_wc_mode = 2;
+            args = "";
+        } else if (str::starts_with(args, "-c ")) {
+            g_filter_wc_mode = 3;
+            args = str::trim(args + 3);
+        } else if (str::eq(args, "-c")) {
+            g_filter_wc_mode = 3;
+            args = "";
+        }
+        if (args[0] == '\0') {
+            hal->print("wc: missing file operand");
+            g_local_filter = 0;
+            return;
+        }
+        str::copy(g_filter_arg, args, 128);
+        char resolved[256];
+        str::resolve_path(cwd, args, resolved, 256);
         dispatch_cmd(json::cmd_path("cat", resolved));
         return;
     }
@@ -1781,7 +2157,16 @@ extern "C" void handle_net_response(const char* json_response)
         return;
     }
 
-    hal->print(json_response);
+    if (g_local_filter != 0)
+    {
+        apply_text_filter(json_response, js_scratch_buf, 4096);
+        hal->print(js_scratch_buf);
+        g_local_filter = 0;
+    }
+    else
+    {
+        hal->print(json_response);
+    }
 }
 
 extern "C" void kernel_main()
