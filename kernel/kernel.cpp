@@ -176,6 +176,32 @@ static const char* cmd_url(const char* command, const char* url)
     return buf;
 }
 
+static const char* cmd_path_mode(const char* command, const char* path, const char* mode)
+{
+    int pos = 0;
+    pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, command, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"path\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, path, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"mode\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, mode, BUF_SIZE);
+    pos = str::append(buf, pos, "\"}", BUF_SIZE);
+    return buf;
+}
+
+static const char* cmd_path_name(const char* command, const char* path, const char* name)
+{
+    int pos = 0;
+    pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, command, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"path\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, path, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"name\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, name, BUF_SIZE);
+    pos = str::append(buf, pos, "\"}", BUF_SIZE);
+    return buf;
+}
+
 static const char* cmd_src_dest(const char* command, const char* src, const char* dest)
 {
     int pos = 0;
@@ -596,6 +622,17 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m wc -l file.txt");
         return;
     }
+    if (str::eq(topic, "chmod"))
+    {
+        hal->print("\033[1;36mchmod\033[0m - Change file access permissions");
+        hal->print("");
+        hal->print("  Add executable permission to a script:");
+        hal->print("  \033[32m$\033[0m chmod +x script.py");
+        hal->print("");
+        hal->print("  Set permissions using numeric mode:");
+        hal->print("  \033[32m$\033[0m chmod 755 script.py");
+        return;
+    }
     if (str::eq(topic, "alias") || str::eq(topic, "unalias"))
     {
         hal->print("\033[1;36malias / unalias\033[0m - Command Aliasing");
@@ -611,22 +648,64 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m unalias ll");
         return;
     }
-    hal->print("tldr: page not found for '");
-    hal->print(topic);
-    hal->print("'. Try 'tldr' to see available pages.");
+    if (str::eq(topic, "ls"))
+    {
+        hal->print("\033[1;36mls\033[0m - List directory contents");
+        hal->print("");
+        hal->print("  List files in current directory:");
+        hal->print("  \033[32m$\033[0m ls");
+        hal->print("");
+        hal->print("  List files with permissions and sizes (long format):");
+        hal->print("  \033[32m$\033[0m ls -l");
+        return;
+    }
+    if (str::eq(topic, "find"))
+    {
+        hal->print("\033[1;36mfind\033[0m - Search for files in a directory hierarchy");
+        hal->print("");
+        hal->print("  Find all Python files in current directory:");
+        hal->print("  \033[32m$\033[0m find . -name \"*.py\"");
+        hal->print("");
+        hal->print("  Find all files matching pattern anywhere inside /shared:");
+        hal->print("  \033[32m$\033[0m find /shared -name \"*.txt\"");
+        return;
+    }
+    if (str::eq(topic, "tree"))
+    {
+        hal->print("\033[1;36mtree\033[0m - List contents of directories in a tree-like format");
+        hal->print("");
+        hal->print("  Display tree of current directory:");
+        hal->print("  \033[32m$\033[0m tree");
+        hal->print("");
+        hal->print("  Display tree of a specific directory:");
+        hal->print("  \033[32m$\033[0m tree /shared");
+        return;
+    }
+    if (str::eq(topic, "run"))
+    {
+        hal->print("\033[1;36mrun\033[0m - Execute a script file (.py, .js, .sh)");
+        hal->print("");
+        hal->print("  Execute a Python script:");
+        hal->print("  \033[32m$\033[0m run script.py");
+        return;
+    }
+    hal->print("tldr: page not found. Try 'tldr' to see available pages.");
 }
 
 static void cmd_help()
 {
-    hal->print("Built-in commands:");
-    hal->print("  help              Show this message");
+    hal->print("Available commands:");
+    hal->print("  help              Show this help message");
     hal->print("  clear             Clear the terminal");
     hal->print("  echo <text>       Print text to terminal");
     hal->print("  version           Show kernel version");
     hal->print("  whoami            Print current user");
     hal->print("  pwd               Print working directory");
     hal->print("  cd <path>         Change directory");
-    hal->print("  ls [path]         List directory contents");
+    hal->print("  ls [-l] [path]    List directory contents");
+    hal->print("  find [p] [-name]  Search for files recursively");
+    hal->print("  tree [path]       Visual directory tree");
+    hal->print("  chmod <mode> <f>  Change file permissions (+x, 755)");
     hal->print("  mkdir <path>      Create a directory");
     hal->print("  rm <path>         Remove a file or empty dir");
     hal->print("  mv <src> <dest>   Move or rename a file/dir");
@@ -1528,12 +1607,147 @@ static void execute_command(char* input)
         return;
     }
 
+    if (str::eq(trimmed, "ls -l") || str::eq(trimmed, "ls -la") || str::eq(trimmed, "ls -al"))
+    {
+        dispatch_cmd(json::cmd_path_mode("ls", cwd, "-l"));
+        return;
+    }
+
     if (str::starts_with(trimmed, "ls "))
     {
         const char* path = str::trim(trimmed + 3);
+        if (str::starts_with(path, "-l ") || str::starts_with(path, "-la ") || str::starts_with(path, "-al "))
+        {
+            const char* target = str::trim(path + (path[2] == ' ' ? 3 : 4));
+            char resolved[256];
+            str::resolve_path(cwd, target, resolved, 256);
+            dispatch_cmd(json::cmd_path_mode("ls", resolved, "-l"));
+            return;
+        }
+        if (str::eq(path, "-l") || str::eq(path, "-la") || str::eq(path, "-al"))
+        {
+            dispatch_cmd(json::cmd_path_mode("ls", cwd, "-l"));
+            return;
+        }
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
         dispatch_cmd(json::cmd_path("ls", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "chmod "))
+    {
+        const char* args = str::trim(trimmed + 6);
+        char mode_buf[64];
+        int m_idx = 0;
+        while (args[m_idx] && args[m_idx] != ' ' && args[m_idx] != '\t' && m_idx < 63)
+        {
+            mode_buf[m_idx] = args[m_idx];
+            m_idx++;
+        }
+        mode_buf[m_idx] = '\0';
+        const char* file = (args[m_idx]) ? str::trim(args + m_idx) : "";
+        if (mode_buf[0] == '\0' || file[0] == '\0')
+        {
+            hal->print("chmod: missing mode or file operand");
+            hal->print("Usage: chmod +x <file> or chmod 755 <file>");
+            return;
+        }
+        char resolved[256];
+        str::resolve_path(cwd, file, resolved, 256);
+        dispatch_cmd(json::cmd_path_mode("chmod", resolved, mode_buf));
+        return;
+    }
+
+    if (str::eq(trimmed, "tree"))
+    {
+        dispatch_cmd(json::cmd_path("tree", cwd));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "tree "))
+    {
+        const char* path = str::trim(trimmed + 5);
+        char resolved[256];
+        str::resolve_path(cwd, path, resolved, 256);
+        dispatch_cmd(json::cmd_path("tree", resolved));
+        return;
+    }
+
+    if (str::eq(trimmed, "find"))
+    {
+        dispatch_cmd(json::cmd_path_name("find", cwd, ""));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "find "))
+    {
+        const char* args = str::trim(trimmed + 5);
+        char path_buf[256];
+        char pattern_buf[256];
+        path_buf[0] = '\0';
+        pattern_buf[0] = '\0';
+
+        if (str::starts_with(args, "-name "))
+        {
+            str::copy(path_buf, cwd, 256);
+            const char* pat = str::trim(args + 6);
+            if ((pat[0] == '"' || pat[0] == '\'') && pat[str::len(pat)-1] == pat[0] && str::len(pat) >= 2)
+            {
+                int p_len = str::len(pat) - 2;
+                if (p_len >= 256) p_len = 255;
+                for (int i = 0; i < p_len; i++) pattern_buf[i] = pat[i+1];
+                pattern_buf[p_len] = '\0';
+            }
+            else
+            {
+                str::copy(pattern_buf, pat, 256);
+            }
+        }
+        else
+        {
+            int name_pos = -1;
+            int args_len = str::len(args);
+            for (int i = 0; i <= args_len - 7; i++)
+            {
+                if (args[i] == ' ' && args[i+1] == '-' && args[i+2] == 'n' && args[i+3] == 'a' && args[i+4] == 'm' && args[i+5] == 'e' && args[i+6] == ' ')
+                {
+                    name_pos = i;
+                    break;
+                }
+            }
+
+            if (name_pos != -1)
+            {
+                int copy_len = name_pos;
+                if (copy_len >= 256) copy_len = 255;
+                for (int i = 0; i < copy_len; i++) path_buf[i] = args[i];
+                path_buf[copy_len] = '\0';
+
+                const char* pat = str::trim(args + name_pos + 7);
+                if ((pat[0] == '"' || pat[0] == '\'') && pat[str::len(pat)-1] == pat[0] && str::len(pat) >= 2)
+                {
+                    int p_len = str::len(pat) - 2;
+                    if (p_len >= 256) p_len = 255;
+                    for (int i = 0; i < p_len; i++) pattern_buf[i] = pat[i+1];
+                    pattern_buf[p_len] = '\0';
+                }
+                else
+                {
+                    str::copy(pattern_buf, pat, 256);
+                }
+            }
+            else
+            {
+                str::copy(path_buf, args, 256);
+                pattern_buf[0] = '\0';
+            }
+        }
+
+        char resolved[256];
+        if (path_buf[0] == '\0') str::copy(path_buf, cwd, 256);
+        str::resolve_path(cwd, str::trim(path_buf), resolved, 256);
+        dispatch_cmd(json::cmd_path_name("find", resolved, pattern_buf));
         return;
     }
 
