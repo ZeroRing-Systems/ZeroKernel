@@ -65,7 +65,7 @@ static int append(char* dst, int pos, const char* src, int max)
 
 static const char* trim(const char* s)
 {
-    while (*s == ' ' || *s == '\t')
+    while (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')
         s++;
     return s;
 }
@@ -1282,13 +1282,13 @@ static void execute_command(char* input)
     }
 
     // Right-trim input to prevent trailing spaces from breaking command parsing
-    int ilen = 0;
-    while (input[ilen]) ilen++;
-    while (ilen > 0 && (input[ilen-1] == ' ' || input[ilen-1] == '\t')) {
-        ilen--;
-        input[ilen] = '\0';
+    int end = 0;
+    while (input[end]) end++;
+    while (end > 0 && (input[end - 1] == ' ' || input[end - 1] == '\t' || input[end - 1] == '\r' || input[end - 1] == '\n'))
+    {
+        input[end - 1] = '\0';
+        end--;
     }
-
     const char* trimmed = str::trim(input);
     if (trimmed[0] == '\0')
         return;
