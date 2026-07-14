@@ -3,6 +3,7 @@
 extern "C" HAL* hal_get(void);
 extern "C" char js_scratch_buf[4096];
 char js_scratch_buf[4096];
+extern char g_home[256];
 
 namespace str
 {
@@ -51,16 +52,15 @@ static int copy(char* dst, const char* src, int max)
     return i;
 }
 
-static int append(char* dst, int dst_len, const char* src, int max)
+static int append(char* dst, int pos, const char* src, int max)
 {
     int i = 0;
-    while (src[i] && dst_len + i < max - 1)
+    while (src[i] && pos < max - 1)
     {
-        dst[dst_len + i] = src[i];
-        i++;
+        dst[pos++] = src[i++];
     }
-    dst[dst_len + i] = '\0';
-    return dst_len + i;
+    dst[pos] = '\0';
+    return pos;
 }
 
 static const char* trim(const char* s)
@@ -84,7 +84,20 @@ static const char* after_space(const char* s)
 
 static void resolve_path(const char* cwd, const char* target, char* resolved, int max)
 {
-    if (target[0] == '/')
+    if (target[0] == '~' && (target[1] == '\0' || target[1] == '/'))
+    {
+        copy(resolved, g_home, max);
+        if (target[1] == '/')
+        {
+            int l = len(resolved);
+            if (l > 1 && resolved[l-1] != '/')
+            {
+                l = append(resolved, l, "/", max);
+            }
+            append(resolved, l, target + 2, max);
+        }
+    }
+    else if (target[0] == '/')
     {
         copy(resolved, target, max);
     }
@@ -500,6 +513,36 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m fetch https://api.github.com/users/ifkabir > user.json");
         return;
     }
+    if (str::eq(topic, "export") || str::eq(topic, "env") || str::eq(topic, "unset"))
+    {
+        hal->print("\033[1;36mexport / env / unset\033[0m - Environment Variables");
+        hal->print("");
+        hal->print("  Set an environment variable:");
+        hal->print("  \033[32m$\033[0m export FOO=bar");
+        hal->print("  \033[32m$\033[0m echo $FOO");
+        hal->print("");
+        hal->print("  List all environment variables ($USER, $HOME, $PWD, custom):");
+        hal->print("  \033[32m$\033[0m env");
+        hal->print("");
+        hal->print("  Unset a custom variable:");
+        hal->print("  \033[32m$\033[0m unset FOO");
+        return;
+    }
+    if (str::eq(topic, "alias") || str::eq(topic, "unalias"))
+    {
+        hal->print("\033[1;36malias / unalias\033[0m - Command Aliasing");
+        hal->print("");
+        hal->print("  Create a command alias:");
+        hal->print("  \033[32m$\033[0m alias ll=\"ls -l\"");
+        hal->print("  \033[32m$\033[0m ll /users");
+        hal->print("");
+        hal->print("  List all active aliases:");
+        hal->print("  \033[32m$\033[0m alias");
+        hal->print("");
+        hal->print("  Remove an alias:");
+        hal->print("  \033[32m$\033[0m unalias ll");
+        return;
+    }
     hal->print("tldr: page not found for '");
     hal->print(topic);
     hal->print("'. Try 'tldr' to see available pages.");
@@ -525,6 +568,11 @@ static void cmd_help()
     hal->print("  run <file>        Execute script (.py, .js, .sh)");
     hal->print("  fetch <url>       Fetch content via HTTP/HTTPS");
     hal->print("  curl <url>        Alias for fetch");
+    hal->print("  export <v>=<val>  Set an environment variable");
+    hal->print("  env               List environment variables");
+    hal->print("  unset <var>       Remove an environment variable");
+    hal->print("  alias <n>=<cmd>   Create a command alias");
+    hal->print("  unalias <name>    Remove a command alias");
     hal->print("  register <u> <p>  Create a new user account");
     hal->print("  login <u> <p>     Log into your account");
     hal->print("  logout            Log out of your account");
@@ -536,6 +584,174 @@ static void cmd_help()
     hal->print("  chat <msg>        Broadcast message to all users");
     hal->print("  tldr <cmd>        Show practical command examples");
     hal->print("  zpm <cmd>         ZeroRing Package Manager");
+}
+
+// --- Environment & Aliases ---
+static const int MAX_ENV = 32;
+static char g_env_names[MAX_ENV][64];
+static char g_env_vals[MAX_ENV][256];
+static int g_env_count = 0;
+
+static const int MAX_ALIAS = 32;
+static char g_alias_names[MAX_ALIAS][64];
+static char g_alias_cmds[MAX_ALIAS][256];
+static int g_alias_count = 0;
+
+static char g_user[64] = "anonymous";
+char g_home[256] = "/";
+
+static const char* find_env(const char* name)
+{
+    if (str::eq(name, "USER")) return g_user;
+    if (str::eq(name, "HOME")) return g_home;
+    if (str::eq(name, "PWD")) return cwd;
+    for (int i = 0; i < g_env_count; i++)
+    {
+        if (str::eq(g_env_names[i], name)) return g_env_vals[i];
+    }
+    return nullptr;
+}
+
+static void set_env(const char* name, const char* val)
+{
+    if (str::eq(name, "USER")) { str::copy(g_user, val, 64); return; }
+    if (str::eq(name, "HOME")) { str::copy(g_home, val, 256); return; }
+    if (str::eq(name, "PWD")) { str::copy(cwd, val, 256); refresh_prompt(); return; }
+    for (int i = 0; i < g_env_count; i++)
+    {
+        if (str::eq(g_env_names[i], name))
+        {
+            str::copy(g_env_vals[i], val, 256);
+            return;
+        }
+    }
+    if (g_env_count < MAX_ENV)
+    {
+        str::copy(g_env_names[g_env_count], name, 64);
+        str::copy(g_env_vals[g_env_count], val, 256);
+        g_env_count++;
+    }
+    else
+    {
+        hal->print("export: environment variable limit reached (32 max)");
+    }
+}
+
+static void unset_env(const char* name)
+{
+    if (str::eq(name, "USER") || str::eq(name, "HOME") || str::eq(name, "PWD"))
+    {
+        hal->print("unset: cannot unset read-only or session built-in variable");
+        return;
+    }
+    for (int i = 0; i < g_env_count; i++)
+    {
+        if (str::eq(g_env_names[i], name))
+        {
+            for (int j = i; j < g_env_count - 1; j++)
+            {
+                str::copy(g_env_names[j], g_env_names[j + 1], 64);
+                str::copy(g_env_vals[j], g_env_vals[j + 1], 256);
+            }
+            g_env_count--;
+            return;
+        }
+    }
+}
+
+static void cmd_env()
+{
+    char buf[350];
+    int pos = str::copy(buf, "USER=", 350);
+    str::append(buf, pos, g_user, 350);
+    hal->print(buf);
+
+    pos = str::copy(buf, "HOME=", 350);
+    str::append(buf, pos, g_home, 350);
+    hal->print(buf);
+
+    pos = str::copy(buf, "PWD=", 350);
+    str::append(buf, pos, cwd, 350);
+    hal->print(buf);
+
+    for (int i = 0; i < g_env_count; i++)
+    {
+        pos = str::copy(buf, g_env_names[i], 350);
+        pos = str::append(buf, pos, "=", 350);
+        str::append(buf, pos, g_env_vals[i], 350);
+        hal->print(buf);
+    }
+}
+
+static const char* find_alias(const char* name)
+{
+    for (int i = 0; i < g_alias_count; i++)
+    {
+        if (str::eq(g_alias_names[i], name)) return g_alias_cmds[i];
+    }
+    return nullptr;
+}
+
+static void set_alias(const char* name, const char* cmd)
+{
+    for (int i = 0; i < g_alias_count; i++)
+    {
+        if (str::eq(g_alias_names[i], name))
+        {
+            str::copy(g_alias_cmds[i], cmd, 256);
+            return;
+        }
+    }
+    if (g_alias_count < MAX_ALIAS)
+    {
+        str::copy(g_alias_names[g_alias_count], name, 64);
+        str::copy(g_alias_cmds[g_alias_count], cmd, 256);
+        g_alias_count++;
+    }
+    else
+    {
+        hal->print("alias: limit reached (32 max)");
+    }
+}
+
+static void unalias_cmd(const char* name)
+{
+    for (int i = 0; i < g_alias_count; i++)
+    {
+        if (str::eq(g_alias_names[i], name))
+        {
+            for (int j = i; j < g_alias_count - 1; j++)
+            {
+                str::copy(g_alias_names[j], g_alias_names[j + 1], 64);
+                str::copy(g_alias_cmds[j], g_alias_cmds[j + 1], 256);
+            }
+            g_alias_count--;
+            return;
+        }
+    }
+    char buf[128];
+    int pos = str::copy(buf, "unalias: no such alias: ", 128);
+    str::append(buf, pos, name, 128);
+    hal->print(buf);
+}
+
+static void cmd_alias_list()
+{
+    if (g_alias_count == 0)
+    {
+        hal->print("No aliases defined.");
+        return;
+    }
+    for (int i = 0; i < g_alias_count; i++)
+    {
+        char buf[350];
+        int pos = str::copy(buf, "alias ", 350);
+        pos = str::append(buf, pos, g_alias_names[i], 350);
+        pos = str::append(buf, pos, "=\"", 350);
+        pos = str::append(buf, pos, g_alias_cmds[i], 350);
+        pos = str::append(buf, pos, "\"", 350);
+        hal->print(buf);
+    }
 }
 
 static char g_pipe_target[256];
@@ -584,11 +800,54 @@ static void dispatch_cmd(const char* payload)
     hal->net_send(new_payload);
 }
 
+static void expand_variables(const char* input, char* output, int max_len)
+{
+    int i = 0;
+    int out_pos = 0;
+    while (input[i] && out_pos < max_len - 1)
+    {
+        if (input[i] == '$')
+        {
+            int j = i + 1;
+            char var_name[64];
+            int var_pos = 0;
+            while (input[j] && var_pos < 63 &&
+                  ((input[j] >= 'A' && input[j] <= 'Z') ||
+                   (input[j] >= 'a' && input[j] <= 'z') ||
+                   (input[j] >= '0' && input[j] <= '9') ||
+                   input[j] == '_'))
+            {
+                var_name[var_pos++] = input[j++];
+            }
+            var_name[var_pos] = '\0';
+            if (var_pos > 0)
+            {
+                const char* val = find_env(var_name);
+                if (val)
+                {
+                    for (int k = 0; val[k] && out_pos < max_len - 1; k++)
+                    {
+                        output[out_pos++] = val[k];
+                    }
+                }
+                i = j;
+                continue;
+            }
+        }
+        output[out_pos++] = input[i++];
+    }
+    output[out_pos] = '\0';
+}
+
 static void execute_command(char* input)
 {
     g_pipe_target[0] = '\0';
     g_redir_target[0] = '\0';
     g_redir_append = false;
+
+    char expanded_buf[512];
+    expand_variables(input, expanded_buf, 512);
+    str::copy(input, expanded_buf, 512);
 
     char* pipe_pos = nullptr;
     char* redir_pos = nullptr;
@@ -629,6 +888,229 @@ static void execute_command(char* input)
     const char* trimmed = str::trim(input);
     if (trimmed[0] == '\0')
         return;
+
+    // Alias expansion loop (up to 3 passes for chained aliases, avoiding recursion)
+    for (int pass = 0; pass < 3; pass++)
+    {
+        char first_word[64];
+        int fw_len = 0;
+        int idx = 0;
+        while (trimmed[idx] && trimmed[idx] != ' ' && trimmed[idx] != '\t' && fw_len < 63)
+        {
+            first_word[fw_len++] = trimmed[idx++];
+        }
+        first_word[fw_len] = '\0';
+
+        const char* alias_target = find_alias(first_word);
+        if (!alias_target)
+            break;
+
+        // Check if alias replacement starts with the exact same first_word to prevent recursion
+        char target_fw[64];
+        int tfw_len = 0;
+        int tidx = 0;
+        while (alias_target[tidx] && alias_target[tidx] != ' ' && alias_target[tidx] != '\t' && tfw_len < 63)
+        {
+            target_fw[tfw_len++] = alias_target[tidx++];
+        }
+        target_fw[tfw_len] = '\0';
+
+        char new_cmd[512];
+        int pos = str::copy(new_cmd, alias_target, 512);
+        while (trimmed[idx] == ' ' || trimmed[idx] == '\t') idx++;
+        if (trimmed[idx])
+        {
+            if (pos < 511) new_cmd[pos++] = ' ';
+            str::append(new_cmd, pos, trimmed + idx, 512);
+        }
+        str::copy(input, new_cmd, 512);
+        trimmed = str::trim(input);
+
+        if (str::eq(first_word, target_fw))
+            break;
+    }
+
+    if (str::eq(trimmed, "env") || str::eq(trimmed, "export"))
+    {
+        cmd_env();
+        return;
+    }
+
+    if (str::starts_with(trimmed, "export ") || str::starts_with(trimmed, "setenv "))
+    {
+        int offset = str::starts_with(trimmed, "export ") ? 7 : 7;
+        const char* arg = str::trim(trimmed + offset);
+        if (arg[0] == '\0')
+        {
+            cmd_env();
+            return;
+        }
+        int eq_idx = -1;
+        for (int i = 0; arg[i]; i++)
+        {
+            if (arg[i] == '=') { eq_idx = i; break; }
+        }
+        if (eq_idx > 0 && eq_idx < 63)
+        {
+            char name_buf[64];
+            for (int i = 0; i < eq_idx; i++) name_buf[i] = arg[i];
+            name_buf[eq_idx] = '\0';
+
+            const char* val_ptr = arg + eq_idx + 1;
+            char val_buf[256];
+            int vlen = 0;
+            while (val_ptr[vlen]) vlen++;
+            if (vlen >= 2 && ((val_ptr[0] == '"' && val_ptr[vlen-1] == '"') || (val_ptr[0] == '\'' && val_ptr[vlen-1] == '\'')))
+            {
+                int c = 0;
+                for (int i = 1; i < vlen - 1 && c < 255; i++) val_buf[c++] = val_ptr[i];
+                val_buf[c] = '\0';
+            }
+            else
+            {
+                str::copy(val_buf, val_ptr, 256);
+            }
+            set_env(name_buf, val_buf);
+        }
+        else if (eq_idx == -1)
+        {
+            if (!find_env(arg)) set_env(arg, "");
+        }
+        return;
+    }
+
+    if (str::starts_with(trimmed, "unset "))
+    {
+        const char* var_name = str::trim(trimmed + 6);
+        if (var_name[0]) unset_env(var_name);
+        return;
+    }
+
+    if (str::eq(trimmed, "alias"))
+    {
+        cmd_alias_list();
+        return;
+    }
+
+    if (str::starts_with(trimmed, "alias "))
+    {
+        const char* arg = str::trim(trimmed + 6);
+        if (arg[0] == '\0')
+        {
+            cmd_alias_list();
+            return;
+        }
+        int eq_idx = -1;
+        for (int i = 0; arg[i]; i++)
+        {
+            if (arg[i] == '=') { eq_idx = i; break; }
+        }
+        if (eq_idx > 0 && eq_idx < 63)
+        {
+            char name_buf[64];
+            for (int i = 0; i < eq_idx; i++) name_buf[i] = arg[i];
+            name_buf[eq_idx] = '\0';
+
+            const char* val_ptr = arg + eq_idx + 1;
+            char val_buf[256];
+            int vlen = 0;
+            while (val_ptr[vlen]) vlen++;
+            if (vlen >= 2 && ((val_ptr[0] == '"' && val_ptr[vlen-1] == '"') || (val_ptr[0] == '\'' && val_ptr[vlen-1] == '\'')))
+            {
+                int c = 0;
+                for (int i = 1; i < vlen - 1 && c < 255; i++) val_buf[c++] = val_ptr[i];
+                val_buf[c] = '\0';
+            }
+            else
+            {
+                str::copy(val_buf, val_ptr, 256);
+            }
+            set_alias(name_buf, val_buf);
+        }
+        else
+        {
+            const char* cmd = find_alias(arg);
+            if (cmd)
+            {
+                char buf[350];
+                int pos = str::copy(buf, "alias ", 350);
+                pos = str::append(buf, pos, arg, 350);
+                pos = str::append(buf, pos, "=\"", 350);
+                pos = str::append(buf, pos, cmd, 350);
+                pos = str::append(buf, pos, "\"", 350);
+                hal->print(buf);
+            }
+            else
+            {
+                char buf[128];
+                int pos = str::copy(buf, "alias: no such alias: ", 128);
+                str::append(buf, pos, arg, 128);
+                hal->print(buf);
+            }
+        }
+        return;
+    }
+
+    if (str::starts_with(trimmed, "unalias "))
+    {
+        const char* name = str::trim(trimmed + 8);
+        if (name[0]) unalias_cmd(name);
+        return;
+    }
+
+    // Check if directly setting a variable like VAR=VALUE without export
+    {
+        int eq_idx = -1;
+        bool is_var_assign = true;
+        for (int i = 0; trimmed[i]; i++)
+        {
+            if (trimmed[i] == ' ' || trimmed[i] == '\t')
+            {
+                if (eq_idx == -1) is_var_assign = false;
+                break;
+            }
+            if (trimmed[i] == '=' && eq_idx == -1)
+            {
+                eq_idx = i;
+            }
+        }
+        if (is_var_assign && eq_idx > 0 && eq_idx < 63)
+        {
+            bool valid_name = true;
+            for (int i = 0; i < eq_idx; i++)
+            {
+                char c = trimmed[i];
+                if (!((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'))
+                {
+                    valid_name = false;
+                    break;
+                }
+            }
+            if (valid_name)
+            {
+                char name_buf[64];
+                for (int i = 0; i < eq_idx; i++) name_buf[i] = trimmed[i];
+                name_buf[eq_idx] = '\0';
+
+                const char* val_ptr = trimmed + eq_idx + 1;
+                char val_buf[256];
+                int vlen = 0;
+                while (val_ptr[vlen]) vlen++;
+                if (vlen >= 2 && ((val_ptr[0] == '"' && val_ptr[vlen-1] == '"') || (val_ptr[0] == '\'' && val_ptr[vlen-1] == '\'')))
+                {
+                    int c = 0;
+                    for (int i = 1; i < vlen - 1 && c < 255; i++) val_buf[c++] = val_ptr[i];
+                    val_buf[c] = '\0';
+                }
+                else
+                {
+                    str::copy(val_buf, val_ptr, 256);
+                }
+                set_env(name_buf, val_buf);
+                return;
+            }
+        }
+    }
 
     if (str::eq(trimmed, "clear"))
     {
@@ -693,6 +1175,14 @@ static void execute_command(char* input)
         }
 
         dispatch_cmd(json::cmd_path("echo", unquoted));
+        return;
+    }
+
+    if (str::eq(trimmed, "cd"))
+    {
+        str::copy(pending_cd, g_home, 256);
+        cd_pending = true;
+        dispatch_cmd(json::cmd_path("stat", g_home));
         return;
     }
 
@@ -1125,10 +1615,56 @@ extern "C" void handle_net_response(const char* json_response)
 
     if (str::starts_with(json_response, "__reset__"))
     {
-        // Reset CWD to root on login/logout/register
-        str::copy(cwd, "/", 256);
-        refresh_prompt();
         const char* msg = json_response + 9;
+        if (str::eq(msg, "logged out"))
+        {
+            str::copy(g_user, "anonymous", 64);
+            str::copy(g_home, "/", 256);
+            str::copy(cwd, "/", 256);
+        }
+        else
+        {
+            const char* as_ptr = nullptr;
+            for (int i = 0; msg[i] && msg[i + 1]; i++)
+            {
+                if (msg[i] == 'a' && msg[i + 1] == 's' && msg[i + 2] == ' ')
+                {
+                    as_ptr = msg + i + 3;
+                    break;
+                }
+            }
+            if (as_ptr)
+            {
+                char ubuf[64];
+                int ulen = 0;
+                while (as_ptr[ulen] && as_ptr[ulen] != '\033' && as_ptr[ulen] != ' ' && ulen < 63)
+                {
+                    ubuf[ulen] = as_ptr[ulen];
+                    ulen++;
+                }
+                ubuf[ulen] = '\0';
+                if (ulen > 0)
+                {
+                    str::copy(g_user, ubuf, 64);
+                    int hpos = str::copy(g_home, "/users/", 256);
+                    str::append(g_home, hpos, ubuf, 256);
+                    str::copy(cwd, g_home, 256);
+                }
+                else
+                {
+                    str::copy(g_user, "anonymous", 64);
+                    str::copy(g_home, "/", 256);
+                    str::copy(cwd, "/", 256);
+                }
+            }
+            else
+            {
+                str::copy(g_user, "anonymous", 64);
+                str::copy(g_home, "/", 256);
+                str::copy(cwd, "/", 256);
+            }
+        }
+        refresh_prompt();
         if (msg[0])
             hal->print(msg);
         return;
