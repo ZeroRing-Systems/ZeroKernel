@@ -152,6 +152,17 @@ static const char* cmd_path(const char* command, const char* path)
     return buf;
 }
 
+static const char* cmd_url(const char* command, const char* url)
+{
+    int pos = 0;
+    pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, command, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"url\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, url, BUF_SIZE);
+    pos = str::append(buf, pos, "\"}", BUF_SIZE);
+    return buf;
+}
+
 static const char* cmd_save(const char* path, const char* data)
 {
     int pos = 0;
@@ -478,6 +489,17 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m zpm install snake_game.js");
         return;
     }
+    if (str::eq(topic, "fetch") || str::eq(topic, "curl"))
+    {
+        hal->print("\033[1;36mfetch / curl\033[0m - Web Fetch / HTTP Client");
+        hal->print("");
+        hal->print("  Fetch JSON from an API:");
+        hal->print("  \033[32m$\033[0m fetch https://api.github.com/users/ifkabir");
+        hal->print("");
+        hal->print("  Save API response to a local file using redirection:");
+        hal->print("  \033[32m$\033[0m fetch https://api.github.com/users/ifkabir > user.json");
+        return;
+    }
     hal->print("tldr: page not found for '");
     hal->print(topic);
     hal->print("'. Try 'tldr' to see available pages.");
@@ -501,6 +523,8 @@ static void cmd_help()
     hal->print("  touch <file>      Create an empty file");
     hal->print("  edit <file>       Open file in text editor");
     hal->print("  run <file>        Execute script (.py, .js, .sh)");
+    hal->print("  fetch <url>       Fetch content via HTTP/HTTPS");
+    hal->print("  curl <url>        Alias for fetch");
     hal->print("  register <u> <p>  Create a new user account");
     hal->print("  login <u> <p>     Log into your account");
     hal->print("  logout            Log out of your account");
@@ -1009,6 +1033,26 @@ static void execute_command(char* input)
             hal->print("  zpm publish <file>     - Publish a script to the global registry");
             hal->print("  zpm install <package>  - Install a package to current directory");
         }
+        return;
+    }
+
+    if (str::starts_with(trimmed, "fetch ") || str::starts_with(trimmed, "curl "))
+    {
+        int offset = str::starts_with(trimmed, "fetch ") ? 6 : 5;
+        const char* url = str::trim(trimmed + offset);
+        if (url[0])
+        {
+            dispatch_cmd(json::cmd_url("fetch", url));
+        }
+        else
+        {
+            hal->print("Usage: fetch <http(s)://url>");
+        }
+        return;
+    }
+    if (str::eq(trimmed, "fetch") || str::eq(trimmed, "curl"))
+    {
+        hal->print("Usage: fetch <http(s)://url>");
         return;
     }
 
