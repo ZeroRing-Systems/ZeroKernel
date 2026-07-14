@@ -176,6 +176,19 @@ static const char* cmd_url(const char* command, const char* url)
     return buf;
 }
 
+static const char* cmd_src_dest(const char* command, const char* src, const char* dest)
+{
+    int pos = 0;
+    pos = str::copy(buf, "{\"cmd\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, command, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"src\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, src, BUF_SIZE);
+    pos = str::append(buf, pos, "\",\"dest\":\"", BUF_SIZE);
+    pos = str::append(buf, pos, dest, BUF_SIZE);
+    pos = str::append(buf, pos, "\"}", BUF_SIZE);
+    return buf;
+}
+
 static const char* cmd_save(const char* path, const char* data)
 {
     int pos = 0;
@@ -528,6 +541,28 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m unset FOO");
         return;
     }
+    if (str::eq(topic, "mv") || str::eq(topic, "rename"))
+    {
+        hal->print("\033[1;36mmv\033[0m - Move or Rename Files / Directories");
+        hal->print("");
+        hal->print("  Rename a file:");
+        hal->print("  \033[32m$\033[0m mv old.txt new.txt");
+        hal->print("");
+        hal->print("  Move a file into a directory:");
+        hal->print("  \033[32m$\033[0m mv file.txt docs");
+        return;
+    }
+    if (str::eq(topic, "cp") || str::eq(topic, "copy"))
+    {
+        hal->print("\033[1;36mcp\033[0m - Copy / Duplicate Files");
+        hal->print("");
+        hal->print("  Duplicate a file:");
+        hal->print("  \033[32m$\033[0m cp source.txt backup.txt");
+        hal->print("");
+        hal->print("  Copy a file into a directory:");
+        hal->print("  \033[32m$\033[0m cp notes.txt docs");
+        return;
+    }
     if (str::eq(topic, "alias") || str::eq(topic, "unalias"))
     {
         hal->print("\033[1;36malias / unalias\033[0m - Command Aliasing");
@@ -561,6 +596,8 @@ static void cmd_help()
     hal->print("  ls [path]         List directory contents");
     hal->print("  mkdir <path>      Create a directory");
     hal->print("  rm <path>         Remove a file or empty dir");
+    hal->print("  mv <src> <dest>   Move or rename a file/dir");
+    hal->print("  cp <src> <dest>   Copy a file");
     hal->print("  cat <file>        Print file contents");
     hal->print("  write <f> <data>  Write data to a file");
     hal->print("  touch <file>      Create an empty file");
@@ -1236,6 +1273,60 @@ static void execute_command(char* input)
         char resolved[256];
         str::resolve_path(cwd, path, resolved, 256);
         dispatch_cmd(json::cmd_path("rm", resolved));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "mv "))
+    {
+        const char* args = str::trim(trimmed + 3);
+        char src[256];
+        int s_idx = 0;
+        while (args[s_idx] && args[s_idx] != ' ' && args[s_idx] != '\t' && s_idx < 255)
+        {
+            src[s_idx] = args[s_idx];
+            s_idx++;
+        }
+        src[s_idx] = '\0';
+        const char* dest = (args[s_idx]) ? str::trim(args + s_idx) : "";
+
+        if (src[0] == '\0' || dest[0] == '\0')
+        {
+            hal->print("mv: missing source or destination file operand");
+            return;
+        }
+
+        char resolved_src[256];
+        char resolved_dest[256];
+        str::resolve_path(cwd, src, resolved_src, 256);
+        str::resolve_path(cwd, dest, resolved_dest, 256);
+        dispatch_cmd(json::cmd_src_dest("mv", resolved_src, resolved_dest));
+        return;
+    }
+
+    if (str::starts_with(trimmed, "cp "))
+    {
+        const char* args = str::trim(trimmed + 3);
+        char src[256];
+        int s_idx = 0;
+        while (args[s_idx] && args[s_idx] != ' ' && args[s_idx] != '\t' && s_idx < 255)
+        {
+            src[s_idx] = args[s_idx];
+            s_idx++;
+        }
+        src[s_idx] = '\0';
+        const char* dest = (args[s_idx]) ? str::trim(args + s_idx) : "";
+
+        if (src[0] == '\0' || dest[0] == '\0')
+        {
+            hal->print("cp: missing source or destination file operand");
+            return;
+        }
+
+        char resolved_src[256];
+        char resolved_dest[256];
+        str::resolve_path(cwd, src, resolved_src, 256);
+        str::resolve_path(cwd, dest, resolved_dest, 256);
+        dispatch_cmd(json::cmd_src_dest("cp", resolved_src, resolved_dest));
         return;
     }
 
