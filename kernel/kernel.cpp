@@ -1079,6 +1079,17 @@ extern "C" void handle_net_response(const char* json_response)
     if (!json_response)
         return;
 
+    if (str::starts_with(json_response, "__reset__"))
+    {
+        // Reset CWD to root on login/logout/register
+        str::copy(cwd, "/", 256);
+        refresh_prompt();
+        const char* msg = json_response + 9;
+        if (msg[0])
+            hal->print(msg);
+        return;
+    }
+
     if (str::starts_with(json_response, "__stat__"))
     {
         if (cd_pending)
