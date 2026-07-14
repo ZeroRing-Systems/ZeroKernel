@@ -2274,6 +2274,8 @@ extern "C" void handle_key(int key)
         line[0] = '\0';
         if (!g_waiting_for_net)
             refresh_prompt();
+        else
+            hal->set_prompt("");
         return;
     }
 
