@@ -1116,10 +1116,18 @@ static char g_pipe_target[256];
 static char g_redir_target[256];
 static bool g_redir_append;
 
+static bool g_waiting_for_net = false;
+
+static void net_send_wrapper(const char* payload)
+{
+    g_waiting_for_net = true;
+    hal->net_send(payload);
+}
+
 static void dispatch_cmd(const char* payload)
 {
     if (!g_pipe_target[0] && !g_redir_target[0]) {
-        hal->net_send(payload);
+        net_send_wrapper(payload);
         return;
     }
     
@@ -1155,7 +1163,7 @@ static void dispatch_cmd(const char* payload)
     }
     new_payload[len++] = '}';
     new_payload[len] = '\0';
-    hal->net_send(new_payload);
+    net_send_wrapper(new_payload);
 }
 
 static void expand_variables(const char* input, char* output, int max_len)
@@ -1963,7 +1971,7 @@ static void execute_command(char* input)
             fname[i] = '\0';
             char resolved[256];
             str::resolve_path(cwd, fname, resolved, 256);
-            hal->net_send(json::cmd_save(resolved, data));
+            net_send_wrapper(json::cmd_save(resolved, data));
         }
         else
         {
@@ -1995,7 +2003,7 @@ static void execute_command(char* input)
             pos = str::append(buf, pos, "\",\"password\":\"", 512);
             pos = str::append(buf, pos, password, 512);
             pos = str::append(buf, pos, "\"}", 512);
-            hal->net_send(buf);
+            net_send_wrapper(buf);
         }
         else
         {
@@ -2032,7 +2040,7 @@ static void execute_command(char* input)
             cwd[0] = '/';
             cwd[1] = '\0';
 
-            hal->net_send(buf);
+            net_send_wrapper(buf);
         }
         else
         {
@@ -2092,7 +2100,7 @@ static void execute_command(char* input)
                 pos = str::append(buf, pos, "\"", 1024);
             }
             pos = str::append(buf, pos, "}", 1024);
-            hal->net_send(buf);
+            net_send_wrapper(buf);
         }
         else
         {
@@ -2260,10 +2268,12 @@ extern "C" void handle_key(int key)
     if (key == 13)
     {
         line[line_pos] = '\0';
+        g_waiting_for_net = false;
         execute_command(line);
         line_pos = 0;
         line[0] = '\0';
-        refresh_prompt();
+        if (!g_waiting_for_net)
+            refresh_prompt();
         return;
     }
 
@@ -2380,6 +2390,12 @@ extern "C" void handle_net_response(const char* json_response)
     else
     {
         hal->print(json_response);
+    }
+
+    if (g_waiting_for_net)
+    {
+        g_waiting_for_net = false;
+        refresh_prompt();
     }
 }
 
