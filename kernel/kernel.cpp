@@ -299,7 +299,7 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m ls");
         hal->print("");
         hal->print("  List files in a specific path:");
-        hal->print("  \033[32m$\033[0m ls /shared");
+        hal->print("  \033[32m$\033[0m ls /public");
         return;
     }
     if (str::eq(topic, "mkdir"))
@@ -332,7 +332,7 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m cat readme.txt");
         hal->print("");
         hal->print("  View a shared file:");
-        hal->print("  \033[32m$\033[0m cat /shared/welcome.txt");
+        hal->print("  \033[32m$\033[0m cat /public/welcome.txt");
         return;
     }
     if (str::eq(topic, "write"))
@@ -418,13 +418,13 @@ static void cmd_tldr(const char* topic)
         hal->print("  Share a file privately with a user:");
         hal->print("  \033[32m$\033[0m share @alice game.py");
         hal->print("");
-        hal->print("  \033[33mNote:\033[0m Global shares go to /shared/, private shares copy");
+        hal->print("  \033[33mNote:\033[0m Global shares go to /public/, private shares copy");
         hal->print("  the file directly into the target user's directory.");
         return;
     }
     if (str::eq(topic, "unshare"))
     {
-        hal->print("\033[1;36munshare\033[0m - Remove a file from /shared/");
+        hal->print("\033[1;36munshare\033[0m - Remove a file from /public/");
         hal->print("");
         hal->print("  \033[32m$\033[0m unshare game.py");
         return;
@@ -436,7 +436,7 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m shared");
         hal->print("");
         hal->print("  Read a shared file:");
-        hal->print("  \033[32m$\033[0m cat /shared/game.py");
+        hal->print("  \033[32m$\033[0m cat /public/game.py");
         return;
     }
     if (str::eq(topic, "upload"))
@@ -456,7 +456,7 @@ static void cmd_tldr(const char* topic)
         hal->print("  \033[32m$\033[0m download game.py");
         hal->print("");
         hal->print("  Download a shared file:");
-        hal->print("  \033[32m$\033[0m download /shared/welcome.txt");
+        hal->print("  \033[32m$\033[0m download /public/welcome.txt");
         return;
     }
     if (str::eq(topic, "chat"))
