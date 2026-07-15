@@ -2339,9 +2339,8 @@ extern "C" void handle_net_response(const char* json_response)
                 if (ulen > 0)
                 {
                     str::copy(g_user, ubuf, 64);
-                    int hpos = str::copy(g_home, "/users/", 256);
-                    str::append(g_home, hpos, ubuf, 256);
-                    str::copy(cwd, g_home, 256);
+                    str::copy(g_home, "/", 256);
+                    str::copy(cwd, "/", 256);
                 }
                 else
                 {
