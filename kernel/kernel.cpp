@@ -2383,15 +2383,22 @@ extern "C" void handle_net_response(const char* json_response)
         return;
     }
 
-    if (g_local_filter != 0)
+    if (json_response[0] != '\0')
     {
-        apply_text_filter(json_response, js_scratch_buf, 4096);
-        hal->print(js_scratch_buf);
-        g_local_filter = 0;
+        if (g_local_filter != 0)
+        {
+            apply_text_filter(json_response, js_scratch_buf, 4096);
+            hal->print(js_scratch_buf);
+            g_local_filter = 0;
+        }
+        else
+        {
+            hal->print(json_response);
+        }
     }
     else
     {
-        hal->print(json_response);
+        g_local_filter = 0;
     }
 
     if (g_waiting_for_net)
